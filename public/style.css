@@ -1,0 +1,338 @@
+:root {
+  color-scheme: dark;
+  --bg: #14150f;
+  --bg-grain: rgba(255, 255, 255, 0.02);
+  --panel: #1e2016;
+  --panel-raised: #262819;
+  --metal: #3d3f2c;
+  --metal-light: #56583d;
+  --text: #e4e0c8;
+  --muted: #8d8c74;
+  --accent: #e8a33d;
+  --accent-dim: #7a5b26;
+
+  --led-green: #4fd07a;
+  --led-red: #f0503f;
+  --led-amber: #f0b429;
+  --led-blue: #55c1d6;
+  --led-off: #4a4b3d;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Share Tech Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  background: var(--bg);
+  color: var(--text);
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      var(--bg-grain) 0px,
+      var(--bg-grain) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+}
+
+/* ---------- Topbar ---------- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1rem 1.5rem;
+  background: linear-gradient(180deg, var(--panel-raised), var(--panel));
+  border-bottom: 3px solid var(--metal);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.plate-title {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+
+.plate-title h1 {
+  font-family: "VT323", monospace;
+  font-size: 2.4rem;
+  letter-spacing: 0.08em;
+  margin: 0;
+  color: var(--accent);
+  text-shadow: 0 0 8px var(--accent-dim);
+}
+
+.subtitle {
+  font-size: 0.68rem;
+  letter-spacing: 0.25em;
+  color: var(--muted);
+  margin-top: 0.15rem;
+}
+
+.topbar-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.filter-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.15em;
+  color: var(--muted);
+}
+
+.synced-at {
+  color: var(--muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.03em;
+}
+
+/* ---------- Controls ---------- */
+
+select,
+button,
+textarea {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel);
+  border: 2px solid var(--metal);
+  border-radius: 3px;
+}
+
+select {
+  padding: 0.4rem 0.6rem;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  letter-spacing: 0.05em;
+}
+
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.btn-panel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1rem;
+  cursor: pointer;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  background: linear-gradient(180deg, var(--panel-raised), var(--panel));
+  border-color: var(--metal-light);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 2px 0 rgba(0, 0, 0, 0.5);
+}
+
+.btn-panel:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn-panel:active {
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+  transform: translateY(1px);
+}
+
+.btn-panel:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.btn-led {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--led-green);
+  box-shadow: 0 0 6px var(--led-green);
+}
+
+.btn-panel:disabled .btn-led {
+  background: var(--led-amber);
+  box-shadow: 0 0 6px var(--led-amber);
+  animation: pulse 0.9s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* ---------- Grid / cards ---------- */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.1rem;
+  padding: 1.5rem;
+}
+
+.card {
+  --cut: 14px;
+  position: relative;
+  background: linear-gradient(160deg, var(--panel-raised), var(--panel) 60%);
+  border: 2px solid var(--metal);
+  clip-path: polygon(
+    var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)),
+    calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut)
+  );
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+}
+
+.card::before,
+.card::after {
+  content: "";
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--metal-light);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.6);
+}
+
+.card::before {
+  top: 8px;
+  left: 8px;
+}
+
+.card::after {
+  bottom: 8px;
+  right: 8px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.card-header a {
+  color: var(--text);
+  font-weight: 700;
+  text-decoration: none;
+  letter-spacing: 0.02em;
+}
+
+.card-header a:hover {
+  color: var(--accent);
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--metal);
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.led {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--led-off);
+}
+
+.led.on-green { background: var(--led-green); box-shadow: 0 0 6px var(--led-green); }
+.led.on-red { background: var(--led-red); box-shadow: 0 0 6px var(--led-red); }
+.led.on-amber { background: var(--led-amber); box-shadow: 0 0 6px var(--led-amber); }
+.led.on-blue { background: var(--led-blue); box-shadow: 0 0 6px var(--led-blue); }
+
+.description {
+  color: var(--muted);
+  font-size: 0.82rem;
+  min-height: 1.1em;
+}
+
+.last-commit {
+  font-size: 0.78rem;
+  color: var(--muted);
+  border-left: 2px solid var(--metal);
+  padding-left: 0.5rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.field-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.field label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+.field textarea {
+  resize: vertical;
+  min-height: 2.2em;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+.field select {
+  align-self: flex-start;
+}
+
+.save-indicator {
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--led-green);
+  height: 1em;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.save-indicator.visible {
+  opacity: 1;
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--muted);
+  padding: 3rem 1rem;
+  letter-spacing: 0.03em;
+}
+
+.empty-state code {
+  color: var(--accent);
+}
