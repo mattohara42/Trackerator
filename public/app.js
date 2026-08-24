@@ -22,12 +22,24 @@ function relativeTime(iso) {
   return `${Math.floor(months / 12)}y ago`;
 }
 
+const CI_LED = {
+  success: { led: "on-green", label: "CI NOMINAL" },
+  failure: { led: "on-red", label: "CI ALERT" },
+  pending: { led: "on-amber", label: "CI STANDBY" },
+};
+
 function ciBadge(status) {
-  const known = ["success", "failure", "pending"];
-  const cls = known.includes(status) ? status : "unknown";
-  const label = { success: "CI passing", failure: "CI failing", pending: "CI pending" }[status] || "CI unknown";
-  return `<span class="badge ci-${cls}">${label}</span>`;
+  const { led, label } = CI_LED[status] || { led: "", label: "CI OFFLINE" };
+  return `<span class="badge"><span class="led ${led}"></span>${label}</span>`;
 }
+
+const STATUS_LED = {
+  active: "on-green",
+  paused: "on-amber",
+  idea: "on-blue",
+  done: "on-green",
+  archived: "",
+};
 
 function escapeHtml(str) {
   return (str ?? "").replace(/[&<>"']/g, (c) => ({
@@ -58,11 +70,14 @@ function renderCard(repo) {
 
     <div class="field">
       <label for="status-${repo.id}">Status</label>
-      <select id="status-${repo.id}" data-field="status">
-        ${["active", "paused", "idea", "done", "archived"].map(
-          (s) => `<option value="${s}" ${repo.status === s ? "selected" : ""}>${s}</option>`
-        ).join("")}
-      </select>
+      <div class="field-row">
+        <span class="led status-led ${STATUS_LED[repo.status] || ""}"></span>
+        <select id="status-${repo.id}" data-field="status">
+          ${["active", "paused", "idea", "done", "archived"].map(
+            (s) => `<option value="${s}" ${repo.status === s ? "selected" : ""}>${s.toUpperCase()}</option>`
+          ).join("")}
+        </select>
+      </div>
     </div>
 
     <div class="field">
@@ -86,6 +101,12 @@ function renderCard(repo) {
   el.querySelectorAll("[data-field]").forEach((input) => {
     const eventName = input.tagName === "SELECT" ? "change" : "input";
     input.addEventListener(eventName, () => scheduleSave(repo.id, el));
+  });
+
+  const statusSelect = el.querySelector('[data-field="status"]');
+  const statusLed = el.querySelector(".status-led");
+  statusSelect.addEventListener("change", () => {
+    statusLed.className = `led status-led ${STATUS_LED[statusSelect.value] || ""}`;
   });
 
   return el;

@@ -4,30 +4,43 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Trackerator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap"
+    rel="stylesheet"
+  />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header class="topbar">
-    <h1>Trackerator</h1>
+    <div class="plate-title">
+      <h1>TRACKERATOR</h1>
+      <span class="subtitle">REPO STATUS CONSOLE</span>
+    </div>
     <div class="topbar-controls">
+      <label class="filter-label" for="statusFilter">FILTER</label>
       <select id="statusFilter">
-        <option value="">All statuses</option>
-        <option value="active">Active</option>
-        <option value="paused">Paused</option>
-        <option value="idea">Idea</option>
-        <option value="done">Done</option>
-        <option value="archived">Archived</option>
+        <option value="">ALL</option>
+        <option value="active">ACTIVE</option>
+        <option value="paused">PAUSED</option>
+        <option value="idea">IDEA</option>
+        <option value="done">DONE</option>
+        <option value="archived">ARCHIVED</option>
       </select>
       <span id="syncedAt" class="synced-at"></span>
-      <button id="syncBtn">Sync from GitHub</button>
+      <button id="syncBtn" class="btn-panel">
+        <span class="btn-led"></span>
+        SYNC UPLINK
+      </button>
     </div>
   </header>
 
   <main id="grid" class="grid"></main>
 
   <p id="emptyState" class="empty-state" hidden>
-    No repos yet. Add a <code>GITHUB_TOKEN</code> to <code>.env</code> and click
-    "Sync from GitHub".
+    NO SIGNAL — no repos tracked yet. Add a <code>GITHUB_TOKEN</code> to
+    <code>.env</code> and hit <strong>SYNC UPLINK</strong>.
   </p>
 
   <script src="app.js"></script>
