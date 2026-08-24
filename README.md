@@ -36,8 +36,16 @@ overwritten by a sync.
 - **Manual per repo:** a status (`active` / `paused` / `idea` / `done` /
   `archived`), a progress note, goals, and next steps — editable inline,
   autosaved as you type.
+- **Send to Claude:** each card has a note box. Click **Send to Claude** and
+  the note is committed straight into that repo's `CLAUDE.md` under a
+  "Notes from Trackerator" section. Any Claude Code session — this one, the
+  CLI, or web — reads `CLAUDE.md` automatically the next time it works in
+  that repo, so the note is there without you having to repeat it. This is
+  deliberately async (it's a durable instruction, not a live chat) — for
+  real-time back-and-forth, just talk to Claude directly.
 - **Storage:** a local SQLite file at `data/trackerator.db` (gitignored).
-  Nothing leaves your machine except the GitHub API calls made during sync.
+  Nothing leaves your machine except the GitHub API calls made during sync
+  and when sending a note.
 
 By default sync pulls only repos you own (`GITHUB_AFFILIATION=owner` in
 `.env`); set it to `all` to also include repos you collaborate on or belong

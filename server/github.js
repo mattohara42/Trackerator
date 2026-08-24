@@ -74,6 +74,73 @@ async function getCombinedStatus(token, fullName, sha) {
   }
 }
 
+async function getFileContents(token, fullName, path, ref) {
+  const res = await fetch(
+    `${API_BASE}/repos/${fullName}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(ref)}`,
+    { headers: headers(token) }
+  );
+  if (res.status === 404) return { content: null, sha: null };
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`GitHub API ${res.status} fetching ${path}: ${body.slice(0, 200)}`);
+  }
+  const data = await res.json();
+  return { content: Buffer.from(data.content, "base64").toString("utf-8"), sha: data.sha };
+}
+
+async function putFileContents(token, fullName, path, branch, content, sha, message) {
+  const res = await fetch(`${API_BASE}/repos/${fullName}/contents/${encodeURIComponent(path)}`, {
+    method: "PUT",
+    headers: { ...headers(token), "Content-Type": "application/json" },
+    body: JSON.stringify({
+      message,
+      content: Buffer.from(content, "utf-8").toString("base64"),
+      branch,
+      ...(sha ? { sha } : {}),
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`GitHub API ${res.status} writing ${path}: ${body.slice(0, 200)}`);
+  }
+  return res.json();
+}
+
+const NOTES_HEADING = "## Notes from Trackerator";
+
+function buildUpdatedClaudeMd(existingContent, note) {
+  const timestamp = new Date().toISOString().slice(0, 10);
+  const entry = `- ${timestamp}: ${note}`;
+
+  if (!existingContent) {
+    return `# CLAUDE.md\n\n${NOTES_HEADING}\n\n${entry}\n`;
+  }
+
+  const trimmed = existingContent.trimEnd();
+  if (trimmed.includes(NOTES_HEADING)) {
+    return `${trimmed}\n${entry}\n`;
+  }
+  return `${trimmed}\n\n${NOTES_HEADING}\n\n${entry}\n`;
+}
+
+export async function sendNoteToClaude({ token, fullName, branch, note }) {
+  if (!token) {
+    throw new Error("GITHUB_TOKEN is not set. Add it to .env to enable sending notes.");
+  }
+  const path = "CLAUDE.md";
+  const { content, sha } = await getFileContents(token, fullName, path, branch);
+  const updated = buildUpdatedClaudeMd(content, note);
+  await putFileContents(
+    token,
+    fullName,
+    path,
+    branch,
+    updated,
+    sha,
+    "Add Trackerator note to CLAUDE.md"
+  );
+}
+
 export async function syncRepos({ token, affiliation = "owner" }) {
   if (!token) {
     throw new Error("GITHUB_TOKEN is not set. Add it to .env to enable syncing.");
