@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Trackerator</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>Trackerator</h1>
+    <div class="topbar-controls">
+      <select id="statusFilter">
+        <option value="">All statuses</option>
+        <option value="active">Active</option>
+        <option value="paused">Paused</option>
+        <option value="idea">Idea</option>
+        <option value="done">Done</option>
+        <option value="archived">Archived</option>
+      </select>
+      <span id="syncedAt" class="synced-at"></span>
+      <button id="syncBtn">Sync from GitHub</button>
+    </div>
+  </header>
+
+  <main id="grid" class="grid"></main>
+
+  <p id="emptyState" class="empty-state" hidden>
+    No repos yet. Add a <code>GITHUB_TOKEN</code> to <code>.env</code> and click
+    "Sync from GitHub".
+  </p>
+
+  <script src="app.js"></script>
+</body>
+</html>
