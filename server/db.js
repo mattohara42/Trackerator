@@ -30,9 +30,16 @@ db.exec(`
     progress_note TEXT NOT NULL DEFAULT '',
     goals TEXT NOT NULL DEFAULT '',
     next_steps TEXT NOT NULL DEFAULT '',
-    manual_updated_at TEXT
+    manual_updated_at TEXT,
+    last_note_sent_at TEXT
   )
 `);
+
+try {
+  db.exec(`ALTER TABLE repos ADD COLUMN last_note_sent_at TEXT`);
+} catch {
+  // Column already exists on databases created before this field was added.
+}
 
 const upsertRepoStmt = db.prepare(`
   INSERT INTO repos (
@@ -99,6 +106,14 @@ export function updateManualFields(id, fields) {
     next_steps: fields.next_steps ?? current.next_steps,
     manual_updated_at: new Date().toISOString(),
   });
+  return getRepo(id);
+}
+
+export function markNoteSent(id) {
+  db.prepare(`UPDATE repos SET last_note_sent_at = ? WHERE id = ?`).run(
+    new Date().toISOString(),
+    id
+  );
   return getRepo(id);
 }
 

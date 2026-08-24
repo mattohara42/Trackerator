@@ -1,8 +1,8 @@
 import "dotenv/config";
 import path from "node:path";
 import express from "express";
-import { listRepos, upsertRepo, updateManualFields } from "./db.js";
-import { syncRepos } from "./github.js";
+import { listRepos, upsertRepo, updateManualFields, getRepo, markNoteSent } from "./db.js";
+import { syncRepos, sendNoteToClaude } from "./github.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -33,6 +33,27 @@ app.patch("/api/repos/:id", (req, res) => {
   const updated = updateManualFields(id, { status, progress_note, goals, next_steps });
   if (!updated) return res.status(404).json({ error: "Repo not found" });
   res.json(updated);
+});
+
+app.post("/api/repos/:id/send-to-claude", async (req, res) => {
+  const id = Number(req.params.id);
+  const note = (req.body?.note ?? "").trim();
+  if (!note) return res.status(400).json({ error: "Note is required" });
+
+  const repo = getRepo(id);
+  if (!repo) return res.status(404).json({ error: "Repo not found" });
+
+  try {
+    await sendNoteToClaude({
+      token: process.env.GITHUB_TOKEN,
+      fullName: repo.full_name,
+      branch: repo.default_branch || "main",
+      note,
+    });
+    res.json(markNoteSent(id));
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
 });
 
 app.listen(PORT, () => {
