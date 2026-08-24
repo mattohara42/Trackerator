@@ -1,6 +1,7 @@
 const grid = document.getElementById("grid");
 const emptyState = document.getElementById("emptyState");
 const syncBtn = document.getElementById("syncBtn");
+const syncLabel = document.getElementById("syncLabel");
 const syncedAtEl = document.getElementById("syncedAt");
 const statusFilter = document.getElementById("statusFilter");
 
@@ -96,6 +97,18 @@ function renderCard(repo) {
     </div>
 
     <div class="save-indicator">saved</div>
+
+    <div class="field claude-note-field">
+      <label for="note-${repo.id}">Note to Claude</label>
+      <textarea id="note-${repo.id}" class="claude-note-input" placeholder="Anything Claude should know next time it works on this repo..."></textarea>
+      <div class="field-row claude-note-row">
+        <button class="btn-panel btn-send-note" type="button">
+          <span class="btn-led"></span>
+          <span class="btn-send-label">SEND TO CLAUDE</span>
+        </button>
+        <span class="note-sent-at">${repo.last_note_sent_at ? `Sent ${relativeTime(repo.last_note_sent_at)}` : ""}</span>
+      </div>
+    </div>
   `;
 
   el.querySelectorAll("[data-field]").forEach((input) => {
@@ -109,7 +122,42 @@ function renderCard(repo) {
     statusLed.className = `led status-led ${STATUS_LED[statusSelect.value] || ""}`;
   });
 
+  el.querySelector(".btn-send-note").addEventListener("click", () => sendNote(repo.id, el));
+
   return el;
+}
+
+async function sendNote(id, cardEl) {
+  const input = cardEl.querySelector(".claude-note-input");
+  const note = input.value.trim();
+  if (!note) return;
+
+  const btn = cardEl.querySelector(".btn-send-note");
+  const label = cardEl.querySelector(".btn-send-label");
+  btn.disabled = true;
+  label.textContent = "SENDING...";
+
+  try {
+    const res = await fetch(`/api/repos/${id}/send-to-claude`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ note }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(`Send failed: ${data.error || res.statusText}`);
+      return;
+    }
+
+    const idx = repos.findIndex((r) => r.id === id);
+    if (idx !== -1) repos[idx] = data;
+
+    input.value = "";
+    cardEl.querySelector(".note-sent-at").textContent = "Sent just now";
+  } finally {
+    btn.disabled = false;
+    label.textContent = "SEND TO CLAUDE";
+  }
 }
 
 function scheduleSave(id, cardEl) {
@@ -167,7 +215,7 @@ async function loadRepos() {
 
 async function runSync() {
   syncBtn.disabled = true;
-  syncBtn.textContent = "Syncing...";
+  syncLabel.textContent = "SYNCING...";
   try {
     const res = await fetch("/api/sync", { method: "POST" });
     const data = await res.json();
@@ -179,7 +227,7 @@ async function runSync() {
     render();
   } finally {
     syncBtn.disabled = false;
-    syncBtn.textContent = "Sync from GitHub";
+    syncLabel.textContent = "SYNC UPLINK";
   }
 }
 

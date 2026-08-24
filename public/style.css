@@ -336,3 +336,30 @@ textarea:focus {
 .empty-state code {
   color: var(--accent);
 }
+
+/* ---------- Note to Claude ---------- */
+
+.claude-note-field {
+  margin-top: 0.2rem;
+  padding-top: 0.65rem;
+  border-top: 1px dashed var(--metal);
+}
+
+.claude-note-field label {
+  color: var(--accent);
+}
+
+.claude-note-row {
+  justify-content: space-between;
+}
+
+.btn-send-note {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.7rem;
+}
+
+.note-sent-at {
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
