@@ -28,6 +28,10 @@
         <option value="done">DONE</option>
         <option value="archived">ARCHIVED</option>
       </select>
+      <label class="toggle" for="showArchived">
+        <input type="checkbox" id="showArchived" />
+        SHOW ARCHIVED
+      </label>
       <span id="syncedAt" class="synced-at"></span>
       <button id="syncBtn" class="btn-panel">
         <span class="btn-led"></span>
@@ -35,6 +39,8 @@
       </button>
     </div>
   </header>
+
+  <p id="archivedNote" class="archived-note"></p>
 
   <main id="grid" class="grid"></main>
 
