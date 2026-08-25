@@ -101,7 +101,9 @@ export async function syncRepos({
   affiliation?: string;
 }): Promise<SyncedRepoInput[]> {
   if (!token) {
-    throw new Error("GITHUB_TOKEN is not set. Add it as a Netlify environment variable.");
+    throw new Error("GITHUB_TOKEN is not set for this deploy. Set it in Netlify under Site "
+      + "configuration > Environment variables, then trigger a new deploy — "
+      + "functions only pick up environment variables at deploy time.");
   }
 
   const repos = await listAllRepos(token, affiliation);
@@ -189,7 +191,9 @@ export async function sendNoteToClaude({
   note: string;
 }): Promise<void> {
   if (!token) {
-    throw new Error("GITHUB_TOKEN is not set. Add it as a Netlify environment variable.");
+    throw new Error("GITHUB_TOKEN is not set for this deploy. Set it in Netlify under Site "
+      + "configuration > Environment variables, then trigger a new deploy — "
+      + "functions only pick up environment variables at deploy time.");
   }
   const path = "CLAUDE.md";
   const { content, sha } = await getFileContents(token, fullName, path, branch);
