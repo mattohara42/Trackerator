@@ -94,16 +94,38 @@ automatically as part of the deploy.
    git-triggered deploy and look like it succeeded — always confirm via
    `commit_ref` on the deploy record.
 
-4. **The sandbox cannot reach `trackerator.netlify.app` either.** Claude cannot
+4. **The GitHub PAT must not be scoped "Public Repositories".** That
+   fine-grained option grants *read-only* access to *public* repos only, and
+   it fails in two silent ways at once: private repos simply never appear in
+   sync (no error — they're absent from the API response), and Send to Claude
+   cannot write. Required: **Repository access = All repositories** (or an
+   explicit selection including the private ones), plus **Contents: Read and
+   write** and **Metadata: Read-only**.
+
+   Diagnostic that settles it in seconds: open `/api/repos` on the live site
+   and look at the `private` field. If every row is `"private": false`, the
+   token cannot see private repos — no amount of reasoning about sync logic
+   will change that.
+
+5. **The sandbox cannot reach `trackerator.netlify.app` either.** Claude cannot
    self-verify the live site; end-to-end confirmation requires Matt to check.
    Verify what you can server-side (deploy state, `commit_ref`, function list,
    migrations) and be explicit about what remains unverified.
+
+   **Ask for real data early rather than reasoning from inference.** Debugging
+   a live-site symptom by theorizing from the sandbox has already produced two
+   confidently-wrong diagnoses in this project's history: an `api.github.com`
+   403 that turned out to be the *sandbox's own egress proxy* rather than
+   GitHub rejecting the token, and deploys attributed to CLI commands that had
+   actually failed (the real deploys came from git merges landing at a similar
+   moment). Asking Matt to paste `/api/repos` takes ten seconds and ends the
+   guessing. Prefer it over another round of hypotheses.
 
 ### Environment variables
 
 | Variable | Where | Notes |
 |---|---|---|
-| `GITHUB_TOKEN` | Netlify env vars (secret) | Needs Contents **read and write** — write is required for Send to Claude |
+| `GITHUB_TOKEN` | Netlify env vars (secret) | **All repositories** access (not "Public Repositories" — that hides private repos *and* blocks writes), Contents **read and write**, Metadata read |
 | `GITHUB_AFFILIATION` | Netlify env vars | `owner` (default) or `all` to include collaborator/org repos |
 
 Locally, both come from `.env` (gitignored) and `netlify dev` loads them.
@@ -159,8 +181,9 @@ retro control-panel theme, Postgres persistence, SSO gating.
 - **Rotate the GitHub PAT.** It was briefly stored as a Netlify variable *name*
   (names are not masked the way secret values are), and tokens were pasted in
   chat. Replace it, update the Netlify variable, then redeploy for it to bind.
-- **Send to Claude is unverified end-to-end** against the live token — the
-  write path has never actually been exercised in production.
+- **Send to Claude:** the token now has Contents write (it was previously
+  scoped read-only public, so this path could never have worked). Still worth
+  exercising once in production to confirm.
 - Enable auto-delete of head branches (see above).
 
 ## Next up: UI work
