@@ -199,17 +199,16 @@ force-pushes).
 
 ## Current state
 
-Working and deployed: sync, manual fields with autosave, Send to Claude, the
-retro control-panel theme, Postgres persistence, SSO gating.
+Working and deployed, all confirmed against real data: sync, manual fields
+with autosave, Send to Claude (verified writing to `squelch`), staleness
+flags, completeness scoring, compact collapsible cards, Postgres persistence,
+SSO gating.
 
 ## Open items
 
 - **Rotate the GitHub PAT.** It was briefly stored as a Netlify variable *name*
   (names are not masked the way secret values are), and tokens were pasted in
   chat. Replace it, update the Netlify variable, then redeploy for it to bind.
-- **Send to Claude:** the token now has Contents write (it was previously
-  scoped read-only public, so this path could never have worked). Still worth
-  exercising once in production to confirm.
 - Enable auto-delete of head branches (see above).
 
 ## Next up: UI work
