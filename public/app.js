@@ -6,8 +6,11 @@ const syncedAtEl = document.getElementById("syncedAt");
 const statusFilter = document.getElementById("statusFilter");
 const showArchivedToggle = document.getElementById("showArchived");
 const archivedNote = document.getElementById("archivedNote");
+const sortSelect = document.getElementById("sortBy");
+const overview = document.getElementById("overview");
 
 const ARCHIVED_PREF_KEY = "trackerator.showArchived";
+const SORT_PREF_KEY = "trackerator.sortBy";
 
 let repos = [];
 const saveTimers = new Map();
@@ -46,6 +49,40 @@ const STATUS_LED = {
   archived: "",
 };
 
+// Deliberately not reusing the words in STATUS_LED: that field is what you
+// *say* a repo is, this is what the commit history actually shows. Keeping the
+// vocabularies separate is what makes the disagreement between them readable.
+const STALENESS_TIERS = [
+  { key: "fresh", maxDays: 14, label: "FRESH", led: "on-green" },
+  { key: "cooling", maxDays: 60, label: "COOLING", led: "on-amber" },
+  { key: "stale", maxDays: 365, label: "STALE", led: "on-red" },
+  { key: "dormant", maxDays: Infinity, label: "DORMANT", led: "" },
+];
+
+/** Days since the last commit, or null when a repo has no commit history. */
+function daysSinceActivity(repo) {
+  const iso = repo.last_commit_date || repo.pushed_at;
+  if (!iso) return null;
+  return (Date.now() - new Date(iso).getTime()) / 86400000;
+}
+
+function stalenessOf(repo) {
+  const days = daysSinceActivity(repo);
+  if (days === null) return { ...STALENESS_TIERS[3], days: Infinity };
+  return { ...STALENESS_TIERS.find((t) => days <= t.maxDays), days };
+}
+
+// The point of the whole dashboard: a repo you called "active" and haven't
+// touched in two months is either mislabelled or genuinely being neglected.
+// Either way it's the thing worth looking at. Repos GitHub has archived are
+// excluded — frozen is the expected state there, not a problem.
+function needsAttention(repo) {
+  if (repo.github_archived) return false;
+  if (repo.status !== "active") return false;
+  const days = daysSinceActivity(repo);
+  return days !== null && days > 60;
+}
+
 function escapeHtml(str) {
   return (str ?? "").replace(/[&<>"']/g, (c) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
@@ -53,14 +90,19 @@ function escapeHtml(str) {
 }
 
 function renderCard(repo) {
+  const stale = stalenessOf(repo);
+  const flagged = needsAttention(repo);
+
   const el = document.createElement("article");
-  el.className = "card";
+  el.className = `card tier-${stale.key}${flagged ? " needs-attention" : ""}`;
   el.dataset.id = repo.id;
 
   el.innerHTML = `
     <div class="card-header">
       <a href="${repo.html_url}" target="_blank" rel="noopener">${escapeHtml(repo.name)}</a>
+      <span class="staleness"><span class="led ${stale.led}"></span>${stale.label}</span>
     </div>
+    ${flagged ? `<div class="attention-flag">Marked active, untouched for ${Math.floor(stale.days)} days</div>` : ""}
     <div class="badges">
       <span class="badge">${repo.private ? "private" : "public"}</span>
       ${repo.github_archived ? '<span class="badge">github-archived</span>' : ""}
@@ -195,6 +237,45 @@ async function saveRepo(id, cardEl) {
   }
 }
 
+const SORTERS = {
+  // Default. Flagged repos first, then longest-neglected — the order you'd
+  // want if you opened this to decide what to pick up.
+  attention: (a, b) =>
+    Number(needsAttention(b)) - Number(needsAttention(a)) ||
+    (daysSinceActivity(b) ?? Infinity) - (daysSinceActivity(a) ?? Infinity),
+  recent: (a, b) => (daysSinceActivity(a) ?? Infinity) - (daysSinceActivity(b) ?? Infinity),
+  stale: (a, b) => (daysSinceActivity(b) ?? Infinity) - (daysSinceActivity(a) ?? Infinity),
+  name: (a, b) => a.name.localeCompare(b.name),
+};
+
+function sortRepos(list, key) {
+  return [...list].sort(SORTERS[key] || SORTERS.attention);
+}
+
+function renderOverview(inScope) {
+  if (inScope.length === 0) {
+    overview.innerHTML = "";
+    return;
+  }
+
+  const counts = { fresh: 0, cooling: 0, stale: 0, dormant: 0 };
+  inScope.forEach((r) => counts[stalenessOf(r).key]++);
+  const flagged = inScope.filter(needsAttention).length;
+
+  const tiers = STALENESS_TIERS.filter((t) => counts[t.key] > 0)
+    .map(
+      (t) =>
+        `<span class="tally"><span class="led ${t.led}"></span>${counts[t.key]} ${t.label}</span>`
+    )
+    .join("");
+
+  overview.innerHTML = `
+    <span class="tally tally-total">${inScope.length} REPOS</span>
+    ${tiers}
+    ${flagged ? `<span class="tally tally-flagged">${flagged} NEED${flagged === 1 ? "S" : ""} ATTENTION</span>` : ""}
+  `;
+}
+
 function render() {
   const filter = statusFilter.value;
   const showArchived = showArchivedToggle.checked;
@@ -204,12 +285,17 @@ function render() {
   const inScope = showArchived ? repos : repos.filter((r) => !r.github_archived);
   const hiddenArchived = repos.length - inScope.length;
 
-  const visible = filter ? inScope.filter((r) => r.status === filter) : inScope;
+  const visible = sortRepos(
+    filter ? inScope.filter((r) => r.status === filter) : inScope,
+    sortSelect.value
+  );
 
   grid.innerHTML = "";
   emptyState.hidden = repos.length > 0;
 
   visible.forEach((repo) => grid.appendChild(renderCard(repo)));
+
+  renderOverview(inScope);
 
   archivedNote.textContent = hiddenArchived
     ? `${hiddenArchived} archived repo${hiddenArchived === 1 ? "" : "s"} hidden`
@@ -287,8 +373,19 @@ showArchivedToggle.addEventListener("change", () => {
   render();
 });
 
+sortSelect.addEventListener("change", () => {
+  try {
+    localStorage.setItem(SORT_PREF_KEY, sortSelect.value);
+  } catch {
+    // Blocked storage — the control still works for this session.
+  }
+  render();
+});
+
 try {
   showArchivedToggle.checked = localStorage.getItem(ARCHIVED_PREF_KEY) === "1";
+  const savedSort = localStorage.getItem(SORT_PREF_KEY);
+  if (savedSort && SORTERS[savedSort]) sortSelect.value = savedSort;
 } catch {
   showArchivedToggle.checked = false;
 }
