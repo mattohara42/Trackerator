@@ -4,6 +4,10 @@ const syncBtn = document.getElementById("syncBtn");
 const syncLabel = document.getElementById("syncLabel");
 const syncedAtEl = document.getElementById("syncedAt");
 const statusFilter = document.getElementById("statusFilter");
+const showArchivedToggle = document.getElementById("showArchived");
+const archivedNote = document.getElementById("archivedNote");
+
+const ARCHIVED_PREF_KEY = "trackerator.showArchived";
 
 let repos = [];
 const saveTimers = new Map();
@@ -193,12 +197,23 @@ async function saveRepo(id, cardEl) {
 
 function render() {
   const filter = statusFilter.value;
-  const visible = filter ? repos.filter((r) => r.status === filter) : repos;
+  const showArchived = showArchivedToggle.checked;
+
+  // GitHub-archived repos are frozen by definition, so they're noise in a view
+  // meant to surface what needs attention. Kept in the DB, just hidden here.
+  const inScope = showArchived ? repos : repos.filter((r) => !r.github_archived);
+  const hiddenArchived = repos.length - inScope.length;
+
+  const visible = filter ? inScope.filter((r) => r.status === filter) : inScope;
 
   grid.innerHTML = "";
   emptyState.hidden = repos.length > 0;
 
   visible.forEach((repo) => grid.appendChild(renderCard(repo)));
+
+  archivedNote.textContent = hiddenArchived
+    ? `${hiddenArchived} archived repo${hiddenArchived === 1 ? "" : "s"} hidden`
+    : "";
 
   const latestSync = repos.reduce(
     (max, r) => (r.synced_at && r.synced_at > max ? r.synced_at : max),
@@ -233,5 +248,20 @@ async function runSync() {
 
 syncBtn.addEventListener("click", runSync);
 statusFilter.addEventListener("change", render);
+
+showArchivedToggle.addEventListener("change", () => {
+  try {
+    localStorage.setItem(ARCHIVED_PREF_KEY, showArchivedToggle.checked ? "1" : "0");
+  } catch {
+    // Private browsing or blocked storage — the toggle still works this session.
+  }
+  render();
+});
+
+try {
+  showArchivedToggle.checked = localStorage.getItem(ARCHIVED_PREF_KEY) === "1";
+} catch {
+  showArchivedToggle.checked = false;
+}
 
 loadRepos();
