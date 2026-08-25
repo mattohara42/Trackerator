@@ -152,9 +152,11 @@ netlify dev            # runs functions + frontend, provisions a branch DB
 - **Matt has asked for changes to be merged automatically as we go** — validate,
   push, open a PR, and squash-merge without pausing for approval on each one.
 - Validate before pushing. There is no CI on this repo, so a bad merge deploys
-  straight to production. At minimum run a typecheck over `lib/**/*.ts` and
-  `netlify/functions/**/*.mts` (`@types/node` is needed; install it
-  `--no-save` for the check).
+  straight to production. Run `npm run typecheck` (covers `lib/**/*.ts` and
+  `netlify/functions/**/*.mts` via the checked-in `tsconfig.json`). For
+  frontend changes, serve `public/` against a stub API and drive it with
+  Playwright — that is how the archived toggle and the sync error handling
+  were verified.
 
 ### Known annoyance: stale branch ref
 
@@ -188,20 +190,15 @@ retro control-panel theme, Postgres persistence, SSO gating.
 
 ## Next up: UI work
 
-The next phase is making the dashboard **more useful**, not just better
-looking. The theme is settled; the substance is not. Known weak points worth
-considering:
+See `HANDOFF.md` for the current state of play. The agreed direction is
+**smarter status surfacing** — helping Matt act on what he's looking at —
+rather than adding more fields to fill in. The theme is settled; the substance
+is not.
 
-- **Staleness is invisible.** Cards sort by last commit, but a repo untouched
-  for 8 months looks much like one touched last week. Surfacing neglect is
-  arguably the core value of the whole tool.
-- **No overview.** There is no at-a-glance sense of the portfolio — counts by
-  status, what is active, what is drifting.
-- **`open_issues_count` conflates issues and PRs** (a GitHub API quirk).
-  Splitting them costs extra API calls per repo.
-- **Filtering is thin** — a single status dropdown, no sort control, no search.
-- **Cards are uniformly tall** regardless of content, so a dense portfolio
-  scrolls a lot; empty note fields take the same space as filled ones.
+The live data makes the problem concrete: all repos read `active` with every
+note field empty, so the manual half of the tool is going unused. Staleness is
+the sharpest gap — `bigmachines` (last pushed 2014) and `WordsPerMinute` (last
+pushed yesterday) render nearly identically.
 
-Ask Matt what he actually wants before building — these are observations, not
-an agreed roadmap.
+Remaining observations, not an agreed roadmap, are listed in `HANDOFF.md`
+under "What to do next". Confirm with Matt before building beyond staleness.
