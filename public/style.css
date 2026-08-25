@@ -94,6 +94,41 @@ body {
   color: var(--muted);
   font-size: 0.75rem;
   letter-spacing: 0.03em;
+  padding-left: 0.75rem;
+  border-left: 1px solid var(--metal);
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.15em;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle input {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.toggle:hover {
+  color: var(--accent);
+}
+
+.archived-note {
+  margin: 0;
+  padding: 0.9rem 1.5rem 0;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.archived-note:empty {
+  display: none;
 }
 
 /* ---------- Controls ---------- */
