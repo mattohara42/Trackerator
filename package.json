@@ -1,16 +1,16 @@
 {
   "name": "trackerator",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "A mini dashboard for tracking status, activity, goals, and next steps across your own GitHub repos.",
   "scripts": {
-    "start": "node server/index.js",
-    "dev": "node --watch server/index.js"
+    "dev": "netlify dev"
   },
   "dependencies": {
-    "better-sqlite3": "^11.3.0",
-    "dotenv": "^16.4.5",
-    "express": "^4.19.2"
+    "@netlify/database": "^2.0.0"
+  },
+  "devDependencies": {
+    "@netlify/functions": "^6.0.0"
   }
 }
