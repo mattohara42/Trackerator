@@ -25,6 +25,14 @@ export interface RepoRow {
   next_steps: string;
   manual_updated_at: string | null;
   last_note_sent_at: string | null;
+  homepage: string | null;
+  topics: string;
+  license_name: string | null;
+  has_readme: boolean;
+  has_ci: boolean;
+  has_tests: boolean;
+  latest_release_tag: string | null;
+  latest_release_at: string | null;
 }
 
 export interface SyncedRepoInput {
@@ -44,6 +52,14 @@ export interface SyncedRepoInput {
   open_issues_count: number;
   ci_status: string;
   synced_at: string;
+  homepage: string | null;
+  topics: string;
+  license_name: string | null;
+  has_readme: boolean;
+  has_ci: boolean;
+  has_tests: boolean;
+  latest_release_tag: string | null;
+  latest_release_at: string | null;
 }
 
 export interface ManualFields {
@@ -71,11 +87,15 @@ export async function upsertRepo(r: SyncedRepoInput): Promise<void> {
     INSERT INTO repos (
       id, name, full_name, html_url, description, private, github_archived,
       default_branch, stars, pushed_at, last_commit_sha, last_commit_message,
-      last_commit_date, open_issues_count, ci_status, synced_at
+      last_commit_date, open_issues_count, ci_status, synced_at,
+      homepage, topics, license_name, has_readme, has_ci, has_tests,
+      latest_release_tag, latest_release_at
     ) VALUES (
       ${r.id}, ${r.name}, ${r.full_name}, ${r.html_url}, ${r.description}, ${r.private}, ${r.github_archived},
       ${r.default_branch}, ${r.stars}, ${r.pushed_at}, ${r.last_commit_sha}, ${r.last_commit_message},
-      ${r.last_commit_date}, ${r.open_issues_count}, ${r.ci_status}, ${r.synced_at}
+      ${r.last_commit_date}, ${r.open_issues_count}, ${r.ci_status}, ${r.synced_at},
+      ${r.homepage}, ${r.topics}, ${r.license_name}, ${r.has_readme}, ${r.has_ci},
+      ${r.has_tests}, ${r.latest_release_tag}, ${r.latest_release_at}
     )
     ON CONFLICT (id) DO UPDATE SET
       name = EXCLUDED.name,
@@ -92,7 +112,15 @@ export async function upsertRepo(r: SyncedRepoInput): Promise<void> {
       last_commit_date = EXCLUDED.last_commit_date,
       open_issues_count = EXCLUDED.open_issues_count,
       ci_status = EXCLUDED.ci_status,
-      synced_at = EXCLUDED.synced_at
+      synced_at = EXCLUDED.synced_at,
+      homepage = EXCLUDED.homepage,
+      topics = EXCLUDED.topics,
+      license_name = EXCLUDED.license_name,
+      has_readme = EXCLUDED.has_readme,
+      has_ci = EXCLUDED.has_ci,
+      has_tests = EXCLUDED.has_tests,
+      latest_release_tag = EXCLUDED.latest_release_tag,
+      latest_release_at = EXCLUDED.latest_release_at
   `;
 }
 

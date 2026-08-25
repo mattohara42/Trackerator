@@ -12,7 +12,23 @@ a second.
 
 ## What's just landed
 
-Staleness surfacing, which was the top item here. Each repo now gets a tier
+**Completeness scoring and compact cards.** Each repo is scored against eight
+setup checks — description, README, licence, topics, a published release, a CI
+workflow, a test suite, and a homepage link — shown as a meter and `n/8`. Most
+of that comes from one recursive git-tree call per repo, so the sync cost is
+about two extra requests each rather than one per check.
+
+Cards now open in sections (`<details>` for Setup, Notes, Send to Claude)
+instead of showing everything at once. A collapsed card is roughly a third the
+height of the old one, so a dozen repos fit on a screen. What stays visible is
+what you'd scan for: name, category, staleness, the meter, and any attention
+flag.
+
+Categories come from **GitHub topics**, not a field in here. Tag a repo
+`audio`, `game` or `productivity` on GitHub and the badge appears after the
+next sync. That keeps the classification on the repo itself.
+
+**Staleness surfacing**, from the round before. Each repo now gets a tier
 computed from its last commit — fresh (≤14d), cooling (≤60d), stale (≤365d),
 dormant — shown as a label on the card and a colour down its left edge.
 
@@ -33,17 +49,26 @@ half of the tool is going unused. Worth watching whether the attention flag
 changes that — if it just produces a wall of red, the fix is probably making
 status quicker to set rather than adding more prompting.
 
+Nothing is tagged with a category topic yet, so those badges will stay blank
+until repos get topics on GitHub. Same for the homepage field — setting it on
+each repo is what lights up the "Live link" check and the Live site link.
+
 Roughly in order:
 
 - `open_issues_count` lumps issues and PRs together. That's a GitHub API
   quirk; separating them costs an extra call per repo.
-- No search, and filtering is still one status dropdown.
-- Cards are all the same height whether the notes are full or empty, so a
-  dozen repos scroll further than they need to.
+- No search, and filtering is still one status dropdown. No filter by category
+  or by completeness either, now that both exist.
 - Two unrelated things are both called "archived": GitHub's flag and the
   manual status option. Worth collapsing.
 - The 60-day attention threshold is a guess. It may want to vary by status, or
   be adjustable.
+- The eight completeness checks are weighted equally, which is probably wrong.
+  A missing README matters more than a missing release for most of these.
+- Last security review, last code review and Netlify publish state were all
+  discussed and deliberately deferred. The first two have no GitHub API behind
+  them and need a convention we'd have to invent; the third needs a second
+  credential.
 
 ## Before you trust anything
 
