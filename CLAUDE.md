@@ -56,6 +56,10 @@ notes on a routine sync would be the worst bug this app could have.
 - **Activity sync** — last commit (message + relative time), combined CI status
   (falls back from legacy commit status to GitHub Actions check-runs), open
   issues/PRs count, stars, public/private, archived flag.
+- **Staleness surfacing** — each repo gets a tier from its last commit (fresh
+  ≤14d, cooling ≤60d, stale ≤365d, dormant), plus an attention flag when a
+  repo marked `active` has gone untouched for 60+ days. Sort defaults to
+  flagged-first. Repos marked paused/idea are exempt; being cold is expected.
 - **Manual tracking** — status (`active`/`paused`/`idea`/`done`/`archived`),
   progress note, goals, next steps. Inline, debounced autosave (600ms).
 - **Send to Claude** — per-repo note box; commits the note into *that repo's*

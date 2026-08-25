@@ -28,6 +28,13 @@
         <option value="done">DONE</option>
         <option value="archived">ARCHIVED</option>
       </select>
+      <label class="filter-label" for="sortBy">SORT</label>
+      <select id="sortBy">
+        <option value="attention">NEEDS ATTENTION</option>
+        <option value="stale">LONGEST NEGLECTED</option>
+        <option value="recent">MOST RECENT</option>
+        <option value="name">NAME</option>
+      </select>
       <label class="toggle" for="showArchived">
         <input type="checkbox" id="showArchived" />
         SHOW ARCHIVED
@@ -39,6 +46,8 @@
       </button>
     </div>
   </header>
+
+  <div id="overview" class="overview"></div>
 
   <p id="archivedNote" class="archived-note"></p>
 

@@ -10,30 +10,40 @@ notes save as you type, GitHub-archived repos hide behind a toggle, and the
 site sits behind a Netlify team login. Eleven repos sync in a little over half
 a second.
 
+## What's just landed
+
+Staleness surfacing, which was the top item here. Each repo now gets a tier
+computed from its last commit — fresh (≤14d), cooling (≤60d), stale (≤365d),
+dormant — shown as a label on the card and a colour down its left edge.
+
+The useful part is the flag built on top. A repo whose status says `active`
+but which hasn't been touched in over 60 days gets called out directly:
+"marked active, untouched for 95 days". That disagreement between what you
+said and what the commits show is the thing worth acting on. Repos you've
+marked paused or idea stay quiet however old they get, because being cold is
+the expected state there.
+
+The default sort puts flagged repos first, then longest-neglected. There's a
+tally strip across the top with counts per tier.
+
 ## What to do next
 
-The dashboard shows status but doesn't help you act on it. Every repo
-currently reads `active` with all four note fields empty, which means the
-manual side of the tool, the part that justifies it existing, is going unused.
+Every repo still reads `active` with all four note fields empty, so the manual
+half of the tool is going unused. Worth watching whether the attention flag
+changes that — if it just produces a wall of red, the fix is probably making
+status quicker to set rather than adding more prompting.
 
-The clearest gap is staleness. `bigmachines` was last pushed in 2014 and
-`WordsPerMinute` yesterday, and on screen they look nearly the same. Noticing
-which projects have drifted is most of the value here, and right now you have
-to read timestamps to find out.
+Roughly in order:
 
-Agreed direction: smarter status surfacing rather than more fields to fill in.
-
-Other things worth doing, roughly in order:
-
-- No portfolio view. There's no sense of the whole set: how many are active,
-  what's moving, what's stalled.
 - `open_issues_count` lumps issues and PRs together. That's a GitHub API
   quirk; separating them costs an extra call per repo.
-- Filtering is a single status dropdown. No sort, no search.
+- No search, and filtering is still one status dropdown.
 - Cards are all the same height whether the notes are full or empty, so a
   dozen repos scroll further than they need to.
 - Two unrelated things are both called "archived": GitHub's flag and the
   manual status option. Worth collapsing.
+- The 60-day attention threshold is a guess. It may want to vary by status, or
+  be adjustable.
 
 ## Before you trust anything
 
