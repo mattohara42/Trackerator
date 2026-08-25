@@ -161,6 +161,14 @@ netlify dev            # runs functions + frontend, provisions a branch DB
   frontend changes, serve `public/` against a stub API and drive it with
   Playwright — that is how the archived toggle and the sync error handling
   were verified.
+- **Netlify builds a deploy preview for every PR**, at
+  `deploy-preview-<number>--trackerator.netlify.app`, and the bot posts the
+  link as a PR comment once it's ready. Previews run the real functions
+  against a branch database, so a UI change can be checked on a live URL
+  before it reaches production. Claude still can't open it (see gotcha 5), but
+  it is the right thing to point Matt at for anything visual — better evidence
+  than a headless screenshot against stub data. Worth waiting for the bot's
+  "ready" comment before merging a risky frontend change.
 
 ### Known annoyance: stale branch ref
 
