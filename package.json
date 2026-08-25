@@ -1,6 +1,6 @@
 {
   "name": "trackerator",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "description": "A mini dashboard for tracking status, activity, goals, and next steps across your own GitHub repos.",
