@@ -1,70 +1,101 @@
 # Trackerator
 
-A mini dashboard for tracking status, activity, goals, and next steps across
-your own GitHub repos.
+A dashboard for keeping track of what's happening across my GitHub repos.
 
-It syncs activity automatically from GitHub (last commit, CI status, open
-issues/PRs) and lets you keep hand-written notes — status, progress, goals,
-next steps — per repo, right alongside that activity. It's deployed on
-Netlify (serverless functions + Netlify DB/Postgres) and sits behind a
-password gate, since it holds a GitHub token with write access.
+Half of it fills itself in. Trackerator pulls each repo's latest commit, CI
+status, open issues and stars from the GitHub API. The other half I write
+myself: what state a project is in, what I'm aiming at, what to do next.
+Syncing never touches those notes.
 
-## Local development
+It's built for one person glancing at it, not for general use.
+
+Live at [trackerator.netlify.app](https://trackerator.netlify.app), behind a
+Netlify team login.
+
+## Running it locally
 
 ```bash
 npm install
-cp .env.example .env   # set GITHUB_TOKEN
-netlify link           # one-time, links this directory to the trackerator site
+cp .env.example .env    # add a GitHub token
+netlify link            # once, to connect this directory to the site
 netlify dev
 ```
 
-`netlify dev` runs the functions and static frontend together and
-auto-provisions a local/branch Postgres database via Netlify DB — no manual
-DB setup needed.
+`netlify dev` serves the frontend and the functions together and provisions a
+branch database on the fly, so there's no local Postgres to set up.
 
 ## Deploying
 
-```bash
-netlify deploy --prod
-```
+Merging to `main` deploys. The site is git-linked, and any new migrations in
+`netlify/database/migrations/` run as part of the build.
 
-There's no GitHub-linked continuous deployment configured — deploys are
-triggered manually (or by Claude, on request) after a change is merged.
+## What it tracks
+
+Pulled from GitHub on every sync: the last commit and how long ago it landed,
+combined CI status, open issues and PRs, stars, whether the repo is private,
+and whether GitHub has it archived.
+
+Written by hand and left alone by sync: a status (active, paused, idea, done,
+archived), a progress note, goals, and next steps. These save as you type.
+
+## Send to Claude
+
+Every card has a note box. Whatever you write there gets committed into that
+repo's own `CLAUDE.md`, under a "Notes from Trackerator" heading. The next
+Claude Code session that opens the repo picks it up without being told.
+
+This is a durable instruction rather than a conversation. If you want to talk
+something through, open Claude directly. The point here is that a thought you
+have while looking at the dashboard survives until you next sit down with that
+project.
+
+## The token
+
+Sync and Send to Claude share one `GITHUB_TOKEN`, stored as a Netlify
+environment variable. It needs:
+
+- Repository access: all repositories, or a selection that includes your
+  private ones
+- Contents: read and write
+- Metadata: read
+
+Anything narrower fails quietly. A token scoped to public repositories will
+sync your public repos and silently leave out the private ones, and Send to
+Claude won't be able to write at all.
+
+`GITHUB_AFFILIATION` sets the scope: `owner` for repos you own, `all` to
+include ones you collaborate on.
 
 ## Access
 
-The live site is password-protected (Site settings > Sharing > Visitor
-access in the Netlify dashboard) since the GitHub token it holds can write
-to your repos. Don't share the URL or password.
+The live site requires a Netlify team login. That matters more than it might
+look: the app holds a token that can write to your repositories, so it should
+never be publicly reachable.
 
-## How it works
+## Layout
 
-- **Auto-synced per repo:** last commit (message + relative time), combined
-  CI status, open issues/PRs count, stars, public/private, GitHub-archived
-  flag.
-- **Manual per repo:** a status (`active` / `paused` / `idea` / `done` /
-  `archived`), a progress note, goals, and next steps — editable inline,
-  autosaved as you type.
-- **Send to Claude:** each card has a note box. Click **Send to Claude** and
-  the note is committed straight into that repo's `CLAUDE.md` under a
-  "Notes from Trackerator" section. Any Claude Code session — this one, the
-  CLI, or web — reads `CLAUDE.md` automatically the next time it works in
-  that repo, so the note is there without you having to repeat it. This is
-  deliberately async (it's a durable instruction, not a live chat) — for
-  real-time back-and-forth, just talk to Claude directly.
-- **Storage:** Netlify DB (managed Postgres). `GITHUB_TOKEN` is set as a
-  Netlify environment variable, never committed.
+```
+public/                        frontend: one page, vanilla JS, no build step
+netlify/functions/             the API
+  repos.mts                    GET    /api/repos
+  sync.mts                     POST   /api/sync
+  repo-update.mts              PATCH  /api/repos/:id
+  send-to-claude.mts           POST   /api/repos/:id/send-to-claude
+lib/                           GitHub and database code shared by the functions
+netlify/database/migrations/   SQL, applied on deploy
+```
 
-By default sync pulls only repos you own (`GITHUB_AFFILIATION=owner`); set
-it to `all` to also include repos you collaborate on or belong to via an
-org.
+Each function declares its own route in an exported `config.path`, so there
+are no redirect rules to keep in sync.
 
-## Architecture
+## Working on it
 
-- `public/` — static frontend (unchanged by the Netlify migration; still
-  talks to `/api/*`).
-- `netlify/functions/` — serverless functions serving `/api/repos`,
-  `/api/sync`, `/api/repos/:id` (PATCH), and `/api/repos/:id/send-to-claude`.
-- `lib/` — shared GitHub API and database logic used by the functions.
-- `netlify/database/migrations/` — SQL migrations, applied automatically by
-  Netlify on deploy.
+There's no CI, and merging to `main` goes straight to production, so check
+your work first:
+
+```bash
+npm run typecheck
+```
+
+`CLAUDE.md` has the architecture notes and the operational traps worth knowing
+about. `HANDOFF.md` covers where things stand and what to pick up next.

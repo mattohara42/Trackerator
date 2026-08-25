@@ -3,14 +3,17 @@
   "version": "0.2.1",
   "private": true,
   "type": "module",
-  "description": "A mini dashboard for tracking status, activity, goals, and next steps across your own GitHub repos.",
+  "description": "A dashboard for tracking activity, status, goals and next steps across your own GitHub repos.",
   "scripts": {
-    "dev": "netlify dev"
+    "dev": "netlify dev",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@netlify/database": "^2.0.0"
   },
   "devDependencies": {
-    "@netlify/functions": "^6.0.0"
+    "@netlify/functions": "^6.0.0",
+    "@types/node": "^22.10.2",
+    "typescript": "^5.6.3"
   }
 }
