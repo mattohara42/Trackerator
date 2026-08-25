@@ -84,6 +84,13 @@ Playwright. The archived toggle and the sync error handling were both checked
 that way, including a simulated 504 to confirm failures surface instead of
 disappearing.
 
+Opening a PR gets you more than that, though. Netlify builds a preview for
+every one at `deploy-preview-<number>--trackerator.netlify.app` and the bot
+comments the link when it's ready. Previews run the real functions against a
+branch database, so anything visual is worth a look there before merging.
+Stub data only proves the logic; the preview shows what it actually looks
+like with your repos in it.
+
 ## Still untested
 
 Send to Claude has never completed successfully in production. The token
