@@ -43,7 +43,9 @@ columns:
 
 - **Sync-owned** (overwritten every sync): `name`, `full_name`, `html_url`,
   `description`, `private`, `github_archived`, `default_branch`, `stars`,
-  `pushed_at`, `last_commit_*`, `open_issues_count`, `ci_status`, `synced_at`
+  `pushed_at`, `last_commit_*`, `open_issues_count`, `ci_status`, `synced_at`,
+  `homepage`, `topics`, `license_name`, `has_readme`, `has_ci`, `has_tests`,
+  `latest_release_*`
 - **User-owned** (never touched by sync): `status`, `progress_note`, `goals`,
   `next_steps`, `manual_updated_at`, `last_note_sent_at`
 
@@ -56,6 +58,16 @@ notes on a routine sync would be the worst bug this app could have.
 - **Activity sync** — last commit (message + relative time), combined CI status
   (falls back from legacy commit status to GitHub Actions check-runs), open
   issues/PRs count, stars, public/private, archived flag.
+- **Completeness score** — eight setup checks per repo (description, README,
+  licence, topics, published release, CI workflow, test suite, homepage link),
+  shown as a segment meter plus `n/8`. Most are derived from a single
+  recursive git-tree call per repo rather than one call per check. The score is
+  computed **in the frontend** from stored facts, so the checks can be
+  reweighted without a re-sync or a migration.
+- **Categories from GitHub topics** — a repo topic of `audio`, `game` or
+  `productivity` becomes a card badge. Deliberately not a Trackerator field:
+  the classification lives on the repo where any tool can read it, and Matt
+  sets it once in GitHub.
 - **Staleness surfacing** — each repo gets a tier from its last commit (fresh
   ≤14d, cooling ≤60d, stale ≤365d, dormant), plus an attention flag when a
   repo marked `active` has gone untouched for 60+ days. Sort defaults to

@@ -83,6 +83,51 @@ function needsAttention(repo) {
   return days !== null && days > 60;
 }
 
+
+// ---------------------------------------------------------------------------
+// Completeness: how well set up a repo is, independent of how active it is.
+// A repo can be busy and badly set up, or finished and immaculate. Each check
+// is a thing you'd expect a project someone else might look at to have.
+// ---------------------------------------------------------------------------
+
+const COMPLETENESS_CHECKS = [
+  { key: "description", label: "Description", test: (r) => Boolean((r.description || "").trim()) },
+  { key: "readme", label: "README", test: (r) => Boolean(r.has_readme) },
+  { key: "license", label: "License", test: (r) => Boolean(r.license_name) },
+  { key: "topics", label: "Topics", test: (r) => topicsOf(r).length > 0 },
+  { key: "release", label: "Release", test: (r) => Boolean(r.latest_release_tag) },
+  { key: "ci", label: "CI workflow", test: (r) => Boolean(r.has_ci) },
+  { key: "tests", label: "Test suite", test: (r) => Boolean(r.has_tests) },
+  { key: "homepage", label: "Live link", test: (r) => Boolean(r.homepage) },
+];
+
+function topicsOf(repo) {
+  try {
+    const parsed = JSON.parse(repo.topics || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function completenessOf(repo) {
+  const results = COMPLETENESS_CHECKS.map((c) => ({ ...c, pass: c.test(repo) }));
+  const passed = results.filter((r) => r.pass).length;
+  return { results, passed, total: results.length };
+}
+
+// Categories come from GitHub topics rather than a field in here, so the
+// classification lives with the repo and any tool can read it.
+const CATEGORY_TOPICS = { audio: "AUDIO", game: "GAME", productivity: "PRODUCTIVITY" };
+
+function categoryOf(repo) {
+  for (const topic of topicsOf(repo)) {
+    const hit = CATEGORY_TOPICS[topic.toLowerCase()];
+    if (hit) return hit;
+  }
+  return null;
+}
+
 function escapeHtml(str) {
   return (str ?? "").replace(/[&<>"']/g, (c) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
@@ -92,6 +137,11 @@ function escapeHtml(str) {
 function renderCard(repo) {
   const stale = stalenessOf(repo);
   const flagged = needsAttention(repo);
+  const completeness = completenessOf(repo);
+  const category = categoryOf(repo);
+  const topics = topicsOf(repo);
+  const filledNotes = [repo.progress_note, repo.goals, repo.next_steps].filter((v) => (v || "").trim()).length;
+  const noteSummary = `${repo.status.toUpperCase()}${filledNotes ? ` · ${filledNotes}/3 filled` : ""}`;
 
   const el = document.createElement("article");
   el.className = `card tier-${stale.key}${flagged ? " needs-attention" : ""}`;
@@ -100,60 +150,88 @@ function renderCard(repo) {
   el.innerHTML = `
     <div class="card-header">
       <a href="${repo.html_url}" target="_blank" rel="noopener">${escapeHtml(repo.name)}</a>
-      <span class="staleness"><span class="led ${stale.led}"></span>${stale.label}</span>
+      <span class="header-meta">
+        ${category ? `<span class="category">${category}</span>` : ""}
+        <span class="staleness"><span class="led ${stale.led}"></span>${stale.label}</span>
+      </span>
     </div>
     ${flagged ? `<div class="attention-flag">Marked active, untouched for ${Math.floor(stale.days)} days</div>` : ""}
-    <div class="badges">
-      <span class="badge">${repo.private ? "private" : "public"}</span>
-      ${repo.github_archived ? '<span class="badge">github-archived</span>' : ""}
-      ${ciBadge(repo.ci_status)}
-      <span class="badge">${repo.open_issues_count} open issue${repo.open_issues_count === 1 ? "" : "s"}/PRs</span>
-      <span class="badge">★ ${repo.stars}</span>
+    <div class="meter" title="${completeness.passed} of ${completeness.total} setup checks pass">
+      ${completeness.results.map((c) => `<span class="seg ${c.pass ? "on" : ""}"></span>`).join("")}
+      <span class="meter-score">${completeness.passed}/${completeness.total}</span>
     </div>
-    <div class="description">${escapeHtml(repo.description)}</div>
+    <div class="description">${escapeHtml(repo.description) || "<em>No description</em>"}</div>
     <div class="last-commit">
       ${repo.last_commit_message ? `"${escapeHtml(repo.last_commit_message)}" — ` : ""}${relativeTime(repo.last_commit_date)}
     </div>
 
-    <div class="field">
-      <label for="status-${repo.id}">Status</label>
-      <div class="field-row">
-        <span class="led status-led ${STATUS_LED[repo.status] || ""}"></span>
-        <select id="status-${repo.id}" data-field="status">
-          ${["active", "paused", "idea", "done", "archived"].map(
-            (s) => `<option value="${s}" ${repo.status === s ? "selected" : ""}>${s.toUpperCase()}</option>`
-          ).join("")}
-        </select>
+    <details class="section">
+      <summary>SETUP <span class="summary-hint">${completeness.passed}/${completeness.total}</span></summary>
+      <ul class="checklist">
+        ${completeness.results
+          .map(
+            (c) =>
+              `<li class="${c.pass ? "pass" : "fail"}"><span class="led ${c.pass ? "on-green" : ""}"></span>${c.label}</li>`
+          )
+          .join("")}
+      </ul>
+      <div class="badges">
+        <span class="badge">${repo.private ? "private" : "public"}</span>
+        ${repo.github_archived ? '<span class="badge">github-archived</span>' : ""}
+        ${ciBadge(repo.ci_status)}
+        <span class="badge">${repo.open_issues_count} open issue${repo.open_issues_count === 1 ? "" : "s"}/PRs</span>
+        <span class="badge">★ ${repo.stars}</span>
+        ${repo.license_name ? `<span class="badge">${escapeHtml(repo.license_name)}</span>` : ""}
+        ${repo.latest_release_tag ? `<span class="badge">${escapeHtml(repo.latest_release_tag)} · ${relativeTime(repo.latest_release_at)}</span>` : ""}
       </div>
-    </div>
+      ${topics.length ? `<div class="badges">${topics.map((t) => `<span class="badge topic">${escapeHtml(t)}</span>`).join("")}</div>` : ""}
+    </details>
 
-    <div class="field">
-      <label for="progress-${repo.id}">Progress</label>
-      <textarea id="progress-${repo.id}" data-field="progress_note" placeholder="Where things stand...">${escapeHtml(repo.progress_note)}</textarea>
-    </div>
-
-    <div class="field">
-      <label for="goals-${repo.id}">Goals</label>
-      <textarea id="goals-${repo.id}" data-field="goals" placeholder="What this repo is for / aiming at...">${escapeHtml(repo.goals)}</textarea>
-    </div>
-
-    <div class="field">
-      <label for="next-${repo.id}">Next steps</label>
-      <textarea id="next-${repo.id}" data-field="next_steps" placeholder="What to do next...">${escapeHtml(repo.next_steps)}</textarea>
-    </div>
-
-    <div class="save-indicator">saved</div>
-
-    <div class="field claude-note-field">
-      <label for="note-${repo.id}">Note to Claude</label>
-      <textarea id="note-${repo.id}" class="claude-note-input" placeholder="Anything Claude should know next time it works on this repo..."></textarea>
-      <div class="field-row claude-note-row">
-        <button class="btn-panel btn-send-note" type="button">
-          <span class="btn-led"></span>
-          <span class="btn-send-label">SEND TO CLAUDE</span>
-        </button>
-        <span class="note-sent-at">${repo.last_note_sent_at ? `Sent ${relativeTime(repo.last_note_sent_at)}` : ""}</span>
+    <details class="section">
+      <summary>NOTES <span class="summary-hint">${noteSummary}</span></summary>
+      <div class="field">
+        <label for="status-${repo.id}">Status</label>
+        <div class="field-row">
+          <span class="led status-led ${STATUS_LED[repo.status] || ""}"></span>
+          <select id="status-${repo.id}" data-field="status">
+            ${["active", "paused", "idea", "done", "archived"]
+              .map((s) => `<option value="${s}" ${repo.status === s ? "selected" : ""}>${s.toUpperCase()}</option>`)
+              .join("")}
+          </select>
+        </div>
       </div>
+      <div class="field">
+        <label for="progress-${repo.id}">Progress</label>
+        <textarea id="progress-${repo.id}" data-field="progress_note" placeholder="Where things stand...">${escapeHtml(repo.progress_note)}</textarea>
+      </div>
+      <div class="field">
+        <label for="goals-${repo.id}">Goals</label>
+        <textarea id="goals-${repo.id}" data-field="goals" placeholder="What this repo is for / aiming at...">${escapeHtml(repo.goals)}</textarea>
+      </div>
+      <div class="field">
+        <label for="next-${repo.id}">Next steps</label>
+        <textarea id="next-${repo.id}" data-field="next_steps" placeholder="What to do next...">${escapeHtml(repo.next_steps)}</textarea>
+      </div>
+      <div class="save-indicator">saved</div>
+    </details>
+
+    <details class="section">
+      <summary>SEND TO CLAUDE <span class="summary-hint">${repo.last_note_sent_at ? relativeTime(repo.last_note_sent_at) : ""}</span></summary>
+      <div class="field claude-note-field">
+        <textarea id="note-${repo.id}" class="claude-note-input" placeholder="Anything Claude should know next time it works on this repo..."></textarea>
+        <div class="field-row claude-note-row">
+          <button class="btn-panel btn-send-note" type="button">
+            <span class="btn-led"></span>
+            <span class="btn-send-label">SEND TO CLAUDE</span>
+          </button>
+          <span class="note-sent-at">${repo.last_note_sent_at ? `Sent ${relativeTime(repo.last_note_sent_at)}` : ""}</span>
+        </div>
+      </div>
+    </details>
+
+    <div class="card-links">
+      <a href="${repo.html_url}" target="_blank" rel="noopener">GitHub ↗</a>
+      ${repo.homepage ? `<a href="${escapeHtml(repo.homepage)}" target="_blank" rel="noopener">Live site ↗</a>` : ""}
     </div>
   `;
 
@@ -246,6 +324,7 @@ const SORTERS = {
   recent: (a, b) => (daysSinceActivity(a) ?? Infinity) - (daysSinceActivity(b) ?? Infinity),
   stale: (a, b) => (daysSinceActivity(b) ?? Infinity) - (daysSinceActivity(a) ?? Infinity),
   name: (a, b) => a.name.localeCompare(b.name),
+  incomplete: (a, b) => completenessOf(a).passed - completenessOf(b).passed,
 };
 
 function sortRepos(list, key) {

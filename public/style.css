@@ -469,3 +469,141 @@ textarea:focus {
   letter-spacing: 0.04em;
   color: var(--muted);
 }
+
+/* ---------- Compact card: header meta, meter, sections ---------- */
+
+.header-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: none;
+}
+
+.category {
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--accent-dim);
+  border-radius: 2px;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+/* Eight segments, one per setup check — reads as a completeness bar without
+   needing a number, though the number is there too. */
+.meter {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.meter .seg {
+  flex: 1;
+  height: 5px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--metal);
+  border-radius: 1px;
+}
+
+.meter .seg.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 4px var(--accent-dim);
+}
+
+.meter-score {
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-left: 0.35rem;
+  flex: none;
+}
+
+.section {
+  border-top: 1px solid var(--metal);
+  padding-top: 0.45rem;
+}
+
+.section > summary {
+  cursor: pointer;
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.section > summary::-webkit-details-marker {
+  display: none;
+}
+
+.section > summary::before {
+  content: "▸ ";
+  color: var(--accent);
+}
+
+.section[open] > summary::before {
+  content: "▾ ";
+}
+
+.section > summary:hover {
+  color: var(--accent);
+}
+
+.summary-hint {
+  color: var(--metal-light);
+  letter-spacing: 0.06em;
+}
+
+.section > *:not(summary) {
+  margin-top: 0.55rem;
+}
+
+.checklist {
+  list-style: none;
+  margin: 0.55rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem 0.6rem;
+}
+
+.checklist li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+
+.checklist li.fail {
+  color: var(--metal-light);
+  text-decoration: line-through;
+  text-decoration-color: var(--metal);
+}
+
+.badge.topic {
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+.card-links {
+  display: flex;
+  gap: 0.9rem;
+  border-top: 1px solid var(--metal);
+  padding-top: 0.5rem;
+}
+
+.card-links a {
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.card-links a:hover {
+  color: var(--accent);
+}
