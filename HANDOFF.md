@@ -116,8 +116,11 @@ branch database, so anything visual is worth a look there before merging.
 Stub data only proves the logic; the preview shows what it actually looks
 like with your repos in it.
 
-## Still untested
+## Proven working
 
-Send to Claude has never completed successfully in production. The token
-couldn't write until recently, so its first real run is still ahead. Worth
-doing early, since it's the feature the whole idea rests on.
+Send to Claude has now run successfully in production against the `squelch`
+repo, writing into its `CLAUDE.md`. That was the last unproven path, and it
+could never have worked before the token gained Contents write access.
+
+Sync, notes, staleness flags, completeness scoring and the compact cards are
+all confirmed working against real data.
