@@ -72,7 +72,55 @@ async function getCombinedStatus(token: string, fullName: string, sha: string | 
   }
 }
 
-function toRow(repo: any, lastCommit: any, ciStatus: string): SyncedRepoInput {
+/**
+ * One recursive tree call gives us the whole file listing, which answers
+ * several setup questions at once (README, licence file, CI workflows, tests)
+ * for the price of a single request. Cheaper than a call per check.
+ */
+async function getRepoTree(token: string, fullName: string, branch: string): Promise<string[]> {
+  try {
+    const data = await ghFetch(
+      `${API_BASE}/repos/${fullName}/git/trees/${encodeURIComponent(branch)}?recursive=1`,
+      token
+    );
+    return (data.tree ?? []).map((n: any) => n.path as string);
+  } catch {
+    return [];
+  }
+}
+
+async function getLatestRelease(token: string, fullName: string) {
+  try {
+    const rel = await ghFetch(`${API_BASE}/repos/${fullName}/releases/latest`, token);
+    return { tag: (rel.tag_name ?? null) as string | null, at: (rel.published_at ?? null) as string | null };
+  } catch {
+    // 404 simply means no published releases, which is a valid answer.
+    return { tag: null, at: null };
+  }
+}
+
+const ROOT_README = /^readme(\.|$)/i;
+const ROOT_LICENSE = /^(licen[sc]e|copying)(\.|$)/i;
+const CI_WORKFLOW = /^\.github\/workflows\/.+\.ya?ml$/i;
+const TEST_PATH =
+  /(^|\/)(tests?|specs?|__tests__|e2e)\/|\.(test|spec)\.[cm]?[jt]sx?$|(^|\/)(jest|vitest|playwright|karma|cypress)\.config\.[cm]?[jt]s$/i;
+
+function inspectTree(paths: string[]) {
+  return {
+    has_readme: paths.some((p) => ROOT_README.test(p)),
+    has_license_file: paths.some((p) => ROOT_LICENSE.test(p)),
+    has_ci: paths.some((p) => CI_WORKFLOW.test(p)),
+    has_tests: paths.some((p) => TEST_PATH.test(p)),
+  };
+}
+
+function toRow(
+  repo: any,
+  lastCommit: any,
+  ciStatus: string,
+  setup: ReturnType<typeof inspectTree>,
+  release: { tag: string | null; at: string | null }
+): SyncedRepoInput {
   return {
     id: repo.id,
     name: repo.name,
@@ -90,6 +138,16 @@ function toRow(repo: any, lastCommit: any, ciStatus: string): SyncedRepoInput {
     open_issues_count: repo.open_issues_count ?? 0,
     ci_status: ciStatus,
     synced_at: new Date().toISOString(),
+    homepage: repo.homepage || null,
+    topics: JSON.stringify(repo.topics ?? []),
+    // GitHub only reports a licence it recognises. A LICENSE file it can't
+    // identify still counts as having one for our purposes.
+    license_name: repo.license?.spdx_id || repo.license?.name || (setup.has_license_file ? "Custom" : null),
+    has_readme: setup.has_readme,
+    has_ci: setup.has_ci,
+    has_tests: setup.has_tests,
+    latest_release_tag: release.tag,
+    latest_release_at: release.at,
   };
 }
 
@@ -108,19 +166,28 @@ export async function syncRepos({
 
   const repos = await listAllRepos(token, affiliation);
 
-  // Each repo needs 2-3 more API calls (last commit, then CI status). Done
-  // sequentially that is 2-3N round trips, which blows past Netlify's ~10s
-  // synchronous function timeout somewhere around 25-30 repos — and because
-  // nothing is written until every fetch finishes, a timeout writes NOTHING
-  // and silently leaves stale data. Bounded concurrency keeps it well inside
-  // the limit without hammering GitHub's rate limiter.
+  const NO_SETUP = { has_readme: false, has_license_file: false, has_ci: false, has_tests: false };
+  const NO_RELEASE = { tag: null, at: null };
+
+  // Each repo needs several more API calls (last commit, CI status, file tree,
+  // latest release). Done sequentially that is 4-5N round trips, which blows
+  // past Netlify's ~10s synchronous function timeout well before 25 repos —
+  // and because nothing is written until every fetch finishes, a timeout
+  // writes NOTHING and silently leaves stale data. Bounded concurrency keeps
+  // it inside the limit without hammering GitHub's rate limiter.
   return mapWithConcurrency(repos, 8, async (repo) => {
     if (!repo.default_branch) {
-      return toRow(repo, { sha: null, message: null, date: null }, "unknown");
+      return toRow(repo, { sha: null, message: null, date: null }, "unknown", NO_SETUP, NO_RELEASE);
     }
+
     const lastCommit = await getLastCommit(token, repo.full_name, repo.default_branch);
-    const ciStatus = await getCombinedStatus(token, repo.full_name, lastCommit.sha);
-    return toRow(repo, lastCommit, ciStatus);
+    const [ciStatus, tree, release] = await Promise.all([
+      getCombinedStatus(token, repo.full_name, lastCommit.sha),
+      getRepoTree(token, repo.full_name, repo.default_branch),
+      getLatestRelease(token, repo.full_name),
+    ]);
+
+    return toRow(repo, lastCommit, ciStatus, inspectTree(tree), release);
   });
 }
 
