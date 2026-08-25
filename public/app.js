@@ -233,17 +233,46 @@ async function runSync() {
   syncLabel.textContent = "SYNCING...";
   try {
     const res = await fetch("/api/sync", { method: "POST" });
-    const data = await res.json();
+
+    // Read as text first: a function timeout or crash returns an HTML error
+    // page, and calling res.json() on that throws — which previously escaped
+    // as an unhandled rejection, so a failed sync looked like nothing at all
+    // happened. Never let a sync fail silently.
+    const body = await res.text();
+    let data = null;
+    try {
+      data = JSON.parse(body);
+    } catch {
+      // Left null — handled below.
+    }
+
     if (!res.ok) {
-      alert(`Sync failed: ${data.error || res.statusText}`);
+      const detail = data?.error || body.slice(0, 300) || res.statusText;
+      alert(`Sync failed (HTTP ${res.status}): ${detail}`);
       return;
     }
+    if (!data) {
+      alert(
+        `Sync returned an unreadable response (HTTP ${res.status}). ` +
+          `This usually means the function timed out. First 300 chars:\n\n${body.slice(0, 300)}`
+      );
+      return;
+    }
+
     repos = data.repos;
     render();
+    reportSync(`Synced ${data.synced} repo${data.synced === 1 ? "" : "s"}`);
+  } catch (err) {
+    alert(`Sync failed: ${err.message}`);
   } finally {
     syncBtn.disabled = false;
     syncLabel.textContent = "SYNC UPLINK";
   }
+}
+
+function reportSync(message) {
+  syncedAtEl.textContent = message;
+  setTimeout(render, 4000);
 }
 
 syncBtn.addEventListener("click", runSync);
