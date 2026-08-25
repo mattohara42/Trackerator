@@ -107,18 +107,41 @@ export async function syncRepos({
   }
 
   const repos = await listAllRepos(token, affiliation);
-  const results: SyncedRepoInput[] = [];
 
-  for (const repo of repos) {
+  // Each repo needs 2-3 more API calls (last commit, then CI status). Done
+  // sequentially that is 2-3N round trips, which blows past Netlify's ~10s
+  // synchronous function timeout somewhere around 25-30 repos — and because
+  // nothing is written until every fetch finishes, a timeout writes NOTHING
+  // and silently leaves stale data. Bounded concurrency keeps it well inside
+  // the limit without hammering GitHub's rate limiter.
+  return mapWithConcurrency(repos, 8, async (repo) => {
     if (!repo.default_branch) {
-      results.push(toRow(repo, { sha: null, message: null, date: null }, "unknown"));
-      continue;
+      return toRow(repo, { sha: null, message: null, date: null }, "unknown");
     }
     const lastCommit = await getLastCommit(token, repo.full_name, repo.default_branch);
     const ciStatus = await getCombinedStatus(token, repo.full_name, lastCommit.sha);
-    results.push(toRow(repo, lastCommit, ciStatus));
-  }
+    return toRow(repo, lastCommit, ciStatus);
+  });
+}
 
+/** Runs `fn` over `items` with at most `limit` in flight, preserving input order. */
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    for (;;) {
+      const i = next++;
+      if (i >= items.length) return;
+      results[i] = await fn(items[i]);
+    }
+  });
+
+  await Promise.all(workers);
   return results;
 }
 
