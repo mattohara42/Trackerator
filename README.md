@@ -5,28 +5,37 @@ your own GitHub repos.
 
 It syncs activity automatically from GitHub (last commit, CI status, open
 issues/PRs) and lets you keep hand-written notes — status, progress, goals,
-next steps — per repo, right alongside that activity.
+next steps — per repo, right alongside that activity. It's deployed on
+Netlify (serverless functions + Netlify DB/Postgres) and sits behind a
+password gate, since it holds a GitHub token with write access.
 
-## Setup
+## Local development
 
 ```bash
 npm install
-cp .env.example .env
+cp .env.example .env   # set GITHUB_TOKEN
+netlify link           # one-time, links this directory to the trackerator site
+netlify dev
 ```
 
-Edit `.env` and set `GITHUB_TOKEN` to a personal access token (classic
-`repo` scope, or fine-grained with `Contents: read` + `Metadata: read` on the
-repos you want tracked).
+`netlify dev` runs the functions and static frontend together and
+auto-provisions a local/branch Postgres database via Netlify DB — no manual
+DB setup needed.
 
-## Run
+## Deploying
 
 ```bash
-npm start
+netlify deploy --prod
 ```
 
-Open http://localhost:3000, then click **Sync from GitHub** to pull in your
-repos. Re-sync any time to refresh activity — your notes are never
-overwritten by a sync.
+There's no GitHub-linked continuous deployment configured — deploys are
+triggered manually (or by Claude, on request) after a change is merged.
+
+## Access
+
+The live site is password-protected (Site settings > Sharing > Visitor
+access in the Netlify dashboard) since the GitHub token it holds can write
+to your repos. Don't share the URL or password.
 
 ## How it works
 
@@ -43,10 +52,19 @@ overwritten by a sync.
   that repo, so the note is there without you having to repeat it. This is
   deliberately async (it's a durable instruction, not a live chat) — for
   real-time back-and-forth, just talk to Claude directly.
-- **Storage:** a local SQLite file at `data/trackerator.db` (gitignored).
-  Nothing leaves your machine except the GitHub API calls made during sync
-  and when sending a note.
+- **Storage:** Netlify DB (managed Postgres). `GITHUB_TOKEN` is set as a
+  Netlify environment variable, never committed.
 
-By default sync pulls only repos you own (`GITHUB_AFFILIATION=owner` in
-`.env`); set it to `all` to also include repos you collaborate on or belong
-to via an org.
+By default sync pulls only repos you own (`GITHUB_AFFILIATION=owner`); set
+it to `all` to also include repos you collaborate on or belong to via an
+org.
+
+## Architecture
+
+- `public/` — static frontend (unchanged by the Netlify migration; still
+  talks to `/api/*`).
+- `netlify/functions/` — serverless functions serving `/api/repos`,
+  `/api/sync`, `/api/repos/:id` (PATCH), and `/api/repos/:id/send-to-claude`.
+- `lib/` — shared GitHub API and database logic used by the functions.
+- `netlify/database/migrations/` — SQL migrations, applied automatically by
+  Netlify on deploy.
