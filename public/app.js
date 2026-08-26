@@ -165,8 +165,8 @@ function renderCard(repo) {
       ${repo.last_commit_message ? `"${escapeHtml(repo.last_commit_message)}" — ` : ""}${relativeTime(repo.last_commit_date)}
     </div>
 
-    <details class="section">
-      <summary>SETUP <span class="summary-hint">${completeness.passed}/${completeness.total}</span></summary>
+    <details class="section zone-cyan">
+      <summary><span class="summary-title">SETUP</span><span class="summary-hint">${completeness.passed}/${completeness.total}</span></summary>
       <ul class="checklist">
         ${completeness.results
           .map(
@@ -187,8 +187,8 @@ function renderCard(repo) {
       ${topics.length ? `<div class="badges">${topics.map((t) => `<span class="badge topic">${escapeHtml(t)}</span>`).join("")}</div>` : ""}
     </details>
 
-    <details class="section">
-      <summary>NOTES <span class="summary-hint">${noteSummary}</span></summary>
+    <details class="section zone-green">
+      <summary><span class="summary-title">NOTES</span><span class="summary-hint">${noteSummary}</span></summary>
       <div class="field">
         <label for="status-${repo.id}">Status</label>
         <div class="field-row">
@@ -215,8 +215,8 @@ function renderCard(repo) {
       <div class="save-indicator">saved</div>
     </details>
 
-    <details class="section">
-      <summary>SEND TO CLAUDE <span class="summary-hint">${repo.last_note_sent_at ? relativeTime(repo.last_note_sent_at) : ""}</span></summary>
+    <details class="section zone-violet">
+      <summary><span class="summary-title">SEND TO CLAUDE</span><span class="summary-hint">${repo.last_note_sent_at ? relativeTime(repo.last_note_sent_at) : ""}</span></summary>
       <div class="field claude-note-field">
         <textarea id="note-${repo.id}" class="claude-note-input" placeholder="Anything Claude should know next time it works on this repo..."></textarea>
         <div class="field-row claude-note-row">
