@@ -26,7 +26,11 @@ login — see Access below).
 public/                     static frontend (vanilla HTML/CSS/JS, no framework)
   index.html                  shell + topbar + empty state
   app.js                      card rendering, autosave, sync, send-to-claude
+  safe.js                     escapeHtml / safeUrl, imported by app.js
   style.css                   retro control-panel theme
+  logo.webp                   the wordmark, in the topbar
+  backdrop.webp               the neon grid horizon, fixed behind everything
+scripts/build-art.py        regenerates both assets from the source artwork
 lib/handlers/*.ts           the API, as plain Request -> Response functions
   repos.ts                    GET    /api/repos
   sync.ts                     POST   /api/sync
@@ -93,6 +97,32 @@ when adding one.
 specifier Node's type stripping resolves, and it is what lets `test/e2e.test.ts`
 import the real handlers and run them. esbuild (which bundles the Netlify
 functions) resolves the literal path, so both paths work from the same source.
+
+### The artwork
+
+Two assets, doing two different jobs, both derived from one source image by
+`scripts/build-art.py` — run that rather than hand-editing them.
+
+- **`logo.webp`** is the wordmark, cropped tight and luminance-keyed to
+  transparency so it sits on the topbar panel instead of on a black rectangle.
+- **`backdrop.webp`** is only the *lower band* of the art — grid, horizon,
+  mountains — fixed to the bottom of the viewport. The wordmark is cropped out
+  rather than blurred away: blurred, it still read as a bright smear behind the
+  cards, a ghost of the logo already in the topbar. The scene is the
+  background, the type is the logo, each doing one job.
+
+Legibility is what this trades against, so it is handled in two places. The
+body scrim fades *downwards* — heaviest at the top where cards are densest,
+lightest at the bottom where the grid is meant to show — and `.card` /
+`.topbar` use `--panel-a` / `--panel-raised-a` (translucent twins of the panel
+colours) plus `backdrop-filter`, which frosts whatever is behind them. **Tune
+the scrim alphas in `body`, not the asset**; the asset is only lightly
+darkened on purpose, because darkening in both places is what made the
+backdrop invisible on the first attempt.
+
+Both are same-origin, so `img-src 'self'` covers them and the CSP needed no
+change. A *remote* image would need a policy widening and would fail
+`test/headers.test.ts` — see the CSP note above.
 
 ### Data model
 
@@ -286,9 +316,10 @@ database, so the default suite stays green without one.
 - Development branch: `claude/personal-repo-tracker-z8zxi3`.
 - **Matt has asked for changes to be merged automatically as we go** — validate,
   push, open a PR, and squash-merge without pausing for approval on each one.
-- Validate before pushing with **`npm run check`** (typecheck + tests). CI now
-  runs the same thing on every push and PR (`.github/workflows/ci.yml`), but
-  `main` still deploys straight to production, so run it locally first.
+- Validate before pushing with **`npm run check`** (typecheck + tests). CI runs
+  the same thing on every push and PR (`.github/workflows/ci.yml`). Merging to
+  `main` does not currently publish — see the deploy note below — so CI and
+  local checks are the only signal there is.
   - `npm test` is `node --test` over `test/*.test.ts`. Node 22.18+ strips
     types natively, so there is still **no build step and no test framework**.
   - Tests import `.ts` files *with the extension* (`../lib/notes.ts`) because

@@ -15,8 +15,13 @@
 <body>
   <header class="topbar">
     <div class="plate-title">
-      <h1>TRACKERATOR</h1>
-      <span class="subtitle">REPO STATUS CONSOLE</span>
+      <!-- The wordmark stays inside the h1 so the page keeps a real heading;
+           the alt text is what a screen reader announces. Dimensions are on the
+           element to reserve the space before it loads, rather than letting the
+           topbar jump. -->
+      <h1>
+        <img class="logo" src="logo.webp" alt="Trackerator" width="560" height="263" />
+      </h1>
     </div>
     <div class="topbar-controls">
       <label class="filter-label" for="statusFilter">FILTER</label>
