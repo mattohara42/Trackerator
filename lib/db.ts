@@ -1,6 +1,11 @@
-import { getDatabase } from "@netlify/database";
+import { getSql } from "./db/sql.ts";
 
-const db = getDatabase();
+// Resolved per call rather than at module load. The old module-scope
+// `getDatabase()` connected as a side effect of importing this file, which
+// meant nothing here could be imported without a database — including by a
+// test that only wanted to read a type. It also fixed the driver choice at
+// import time, before any test could point it somewhere else.
+const db = { get sql() { return getSql(); } };
 
 export interface RepoRow {
   id: number;
@@ -77,17 +82,37 @@ export interface ManualFields {
   next_steps?: string;
 }
 
+/**
+ * Normalises a row so every driver yields the same shape.
+ *
+ * `repos.id` is a BIGINT. postgres.js returns int8 as a *string*, to avoid
+ * silently losing precision past 2^53; the Neon driver behind
+ * `@netlify/database` returns it as a number. Left alone that difference is
+ * invisible until something compares an id — `repos.findIndex(r => r.id === id)`
+ * in `public/app.js` does exactly that — and then the dashboard misbehaves on
+ * one host and not the other, with nothing in the code to point at.
+ *
+ * GitHub's repo ids are nine digits, comfortably inside Number.MAX_SAFE_INTEGER,
+ * and `repoIdFrom` already refuses anything outside safe-integer range, so
+ * narrowing to a number here loses nothing.
+ */
+function normalise<T>(row: T): T {
+  const r = row as { id?: unknown };
+  if (typeof r.id === "string") r.id = Number(r.id);
+  return row;
+}
+
 export async function listRepos(): Promise<RepoRow[]> {
   const rows = await db.sql`
     SELECT * FROM repos
     ORDER BY COALESCE(last_commit_date, pushed_at) DESC NULLS LAST
   `;
-  return rows as unknown as RepoRow[];
+  return (rows as unknown as RepoRow[]).map(normalise);
 }
 
 export async function getRepo(id: number): Promise<RepoRow | null> {
   const rows = await db.sql`SELECT * FROM repos WHERE id = ${id}`;
-  return (rows[0] as RepoRow) ?? null;
+  return rows[0] ? normalise(rows[0] as RepoRow) : null;
 }
 
 export async function upsertRepo(r: SyncedRepoInput): Promise<void> {

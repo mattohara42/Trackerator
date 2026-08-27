@@ -1,5 +1,5 @@
-import type { SyncedRepoInput } from "./db";
-import { buildUpdatedClaudeMd } from "./notes";
+import type { SyncedRepoInput } from "./db.ts";
+import { buildUpdatedClaudeMd } from "./notes.ts";
 
 const API_BASE = "https://api.github.com";
 

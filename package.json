@@ -8,10 +8,13 @@
     "dev": "netlify dev",
     "typecheck": "tsc --noEmit",
     "test": "node --test \"test/*.test.ts\"",
+    "test:e2e": "node --test test/e2e.test.ts",
+    "migrate": "node scripts/migrate.ts",
     "check": "npm run typecheck && npm test"
   },
   "dependencies": {
-    "@netlify/database": "^2.0.0"
+    "@netlify/database": "^2.0.0",
+    "postgres": "^3.4.9"
   },
   "devDependencies": {
     "@netlify/functions": "^6.0.0",
