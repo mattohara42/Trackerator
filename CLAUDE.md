@@ -170,6 +170,23 @@ automatically as part of the deploy.
    moment). Asking Matt to paste `/api/repos` takes ten seconds and ends the
    guessing. Prefer it over another round of hypotheses.
 
+7. **The sandbox proxy passes `curl` but resets Chromium.** Outbound HTTPS goes
+   through an egress proxy that `curl` uses via the CA bundle, so a `curl` to
+   `fonts.googleapis.com` returns 200. The same URL from headless Chromium —
+   even launched with `--proxy-server` pointed at `$HTTPS_PROXY` — dies with
+   `net::ERR_CONNECTION_RESET`, because the browser does not trust the proxy's
+   MITM certificate. So **a remote asset failing in a headless browser here is
+   not evidence about the asset, the CSP, or the site.**
+
+   The way to tell them apart, which is exact: CSP is evaluated *before* the
+   network. A request the policy blocks never leaves the browser and fires a
+   `securitypolicyviolation` event. A request the policy allows is *sent* and
+   then dies at the proxy. So listen for `page.on("request")` and
+   `securitypolicyviolation` together — a sent request with no violation proves
+   the CSP allows it, whatever happens to it afterwards. That is how both
+   Google Fonts hops (`style-src` → googleapis, `font-src` → gstatic) were
+   verified with no working egress and no deploy.
+
 ### Environment variables
 
 | Variable | Where | Notes |
@@ -226,14 +243,19 @@ netlify dev            # runs functions + frontend, provisions a branch DB
     Playwright — that is how the archived toggle, the sync error handling, and
     the S3/S4 XSS fixes were verified. **Check the harness fails against the
     pre-fix code**; a security test that passes either way proves nothing.
-- **Netlify builds a deploy preview for every PR**, at
-  `deploy-preview-<number>--trackerator.netlify.app`, and the bot posts the
-  link as a PR comment once it's ready. Previews run the real functions
-  against a branch database, so a UI change can be checked on a live URL
-  before it reaches production. Claude still can't open it (see gotcha 5), but
-  it is the right thing to point Matt at for anything visual — better evidence
-  than a headless screenshot against stub data. Worth waiting for the bot's
-  "ready" comment before merging a risky frontend change.
+- **Deploy previews and auto-deploy are OFF (2026-08-27): the Netlify credits
+  ran out.** No preview is built for a PR and merging to `main` no longer
+  publishes. Two consequences, in opposite directions: a bad merge no longer
+  reaches production, but the live site is frozen at whatever last deployed and
+  `main` can drift ahead of it indefinitely. Do not wait for a preview bot
+  comment or point anyone at a `deploy-preview-*` URL — none is coming. Verify
+  locally instead (above), and treat "it works on `main`" as untested in
+  production until a deploy actually happens.
+
+  Previously this said Netlify built a preview for every PR and the bot
+  commented the link. That was true and is kept here only so nobody re-derives
+  it from an old PR: previews stopped because of billing, not a broken
+  integration.
 
 ### Known annoyance: stale branch ref
 

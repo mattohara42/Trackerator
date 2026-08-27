@@ -185,6 +185,18 @@ remote dependency being added without a matching source. Verified in Chromium
 against the real headers: no violations, and a deliberately broken policy fails
 both the unit tests and the browser run.
 
+**Both Google Fonts hops are verified, without a deploy.** This was left open
+because the sandbox has no working browser egress, so the fonts could not be
+watched loading. It turned out not to matter: CSP is evaluated *before* the
+network, so a blocked request never leaves the browser and fires a
+`securitypolicyviolation`, while an allowed one is sent and only then fails.
+Listening for both, the googleapis stylesheet request (`style-src`) and a
+direct `FontFace` load from gstatic (`font-src`) were each **sent with no
+violation**, dying afterwards at the sandbox proxy with `ERR_CONNECTION_RESET`
+— and the `FontFace` rejected with `NetworkError`, not the `SecurityError` a
+CSP block produces. The policy admits both origins. Nothing about the fonts is
+outstanding.
+
 ### S9 · ~~Medium~~ FIXED · Note content is injected into an agent instruction file unchecked
 
 `send-to-claude.mts:21`, `lib/github.ts:327`
