@@ -45,7 +45,7 @@ columns:
   `description`, `private`, `github_archived`, `default_branch`, `stars`,
   `pushed_at`, `last_commit_*`, `open_issues_count`, `ci_status`, `synced_at`,
   `homepage`, `topics`, `license_name`, `has_readme`, `has_ci`, `has_tests`,
-  `latest_release_*`
+  `latest_release_*`, `open_issues`, `open_prs`, `oldest_pr_at`, `top_issues`
 - **User-owned** (never touched by sync): `status`, `progress_note`, `goals`,
   `next_steps`, `manual_updated_at`, `last_note_sent_at`
 
@@ -72,8 +72,18 @@ notes on a routine sync would be the worst bug this app could have.
   ≤14d, cooling ≤60d, stale ≤365d, dormant), plus an attention flag when a
   repo marked `active` has gone untouched for 60+ days. Sort defaults to
   flagged-first. Repos marked paused/idea are exempt; being cold is expected.
+- **Open work** — issues and PRs counted separately, plus the titles of the
+  three most recently updated issues, in a `NEXT UP` card section. GitHub's
+  `open_issues_count` is the two added together, which can't distinguish three
+  things to decide from three things half-finished; one extra call per repo to
+  `/issues` (where a PR is an issue carrying a `pull_request` key) separates
+  them and yields the titles. Answers "what would I pick up here" without
+  anyone typing into a field.
 - **Manual tracking** — status (`active`/`paused`/`idea`/`done`/`archived`),
-  progress note, goals, next steps. Inline, debounced autosave (600ms).
+  progress note, goals, next steps. Status is five chips on the card face —
+  one click, no expanding — since burying it in a collapsed dropdown was why
+  every repo sat at the `active` default. Notes autosave inline (600ms
+  debounce).
 - **Send to Claude** — per-repo note box; commits the note into *that repo's*
   `CLAUDE.md` under a `## Notes from Trackerator` heading, via the GitHub
   Contents API. Any later Claude session on that repo picks it up

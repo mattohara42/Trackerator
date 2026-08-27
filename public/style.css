@@ -649,6 +649,7 @@ textarea:focus {
 .section.zone-cyan { --zone: var(--panel-cyan); }
 .section.zone-green { --zone: var(--panel-green); }
 .section.zone-violet { --zone: var(--panel-violet); }
+.section.zone-yellow { --zone: var(--panel-yellow); }
 
 .section > summary {
   cursor: pointer;
@@ -731,6 +732,49 @@ textarea:focus {
   color: var(--metal-light);
   text-decoration: line-through;
   text-decoration-color: var(--metal);
+}
+
+/* ---------- Open work ---------- */
+
+.issue-list {
+  list-style: none;
+  margin: 0.55rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.issue-list a {
+  display: flex;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.issue-list a:hover {
+  color: var(--text);
+}
+
+.issue-num {
+  color: var(--panel-yellow);
+  flex: none;
+}
+
+.work-note {
+  font-size: 0.68rem;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+
+/* An open PR is work already started and left, which is worth a lit LED in a
+   way an issue is not. */
+.pr-note {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
 }
 
 .badge.topic {

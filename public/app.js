@@ -122,6 +122,40 @@ function categoryOf(repo) {
   return null;
 }
 
+// ---------------------------------------------------------------------------
+// Open work: the closest thing to an answer for "what would I do next here",
+// and unlike the Next steps field it needs no typing. Issues and PRs are
+// counted separately because they mean different things — an issue is a thing
+// to decide, an open PR is a thing you started and walked away from.
+// ---------------------------------------------------------------------------
+
+function openWorkOf(repo) {
+  let issues = [];
+  try {
+    const parsed = JSON.parse(repo.top_issues || "[]");
+    if (Array.isArray(parsed)) issues = parsed;
+  } catch {
+    // Malformed JSON means no titles to show, not a broken card.
+  }
+  return {
+    issues,
+    openIssues: repo.open_issues ?? 0,
+    openPrs: repo.open_prs ?? 0,
+    oldestPrAt: repo.oldest_pr_at || null,
+  };
+}
+
+function plural(n, word) {
+  return `${n} ${word}${n === 1 ? "" : "s"}`;
+}
+
+function workHintOf(work) {
+  const parts = [];
+  if (work.openIssues) parts.push(plural(work.openIssues, "issue"));
+  if (work.openPrs) parts.push(plural(work.openPrs, "PR"));
+  return parts.join(" · ") || "clear";
+}
+
 function escapeHtml(str) {
   return (str ?? "").replace(/[&<>"']/g, (c) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
@@ -134,6 +168,7 @@ function renderCard(repo) {
   const completeness = completenessOf(repo);
   const category = categoryOf(repo);
   const topics = topicsOf(repo);
+  const work = openWorkOf(repo);
   const filledNotes = [repo.progress_note, repo.goals, repo.next_steps].filter((v) => (v || "").trim()).length;
   const noteSummary = `${repo.status.toUpperCase()}${filledNotes ? ` · ${filledNotes}/3 filled` : ""}`;
 
@@ -173,6 +208,34 @@ function renderCard(repo) {
       ).join("")}
     </div>
 
+    <details class="section zone-yellow">
+      <summary><span class="summary-title">NEXT UP</span><span class="summary-hint">${workHintOf(work)}</span></summary>
+      ${
+        work.issues.length
+          ? `<ul class="issue-list">
+        ${work.issues
+          .map(
+            (i) =>
+              `<li><a href="${escapeHtml(i.url)}" target="_blank" rel="noopener"><span class="issue-num">#${escapeHtml(
+                String(i.number)
+              )}</span>${escapeHtml(i.title)}</a></li>`
+          )
+          .join("")}
+      </ul>
+      ${work.openIssues > work.issues.length ? `<div class="work-note">+${work.openIssues - work.issues.length} more open</div>` : ""}`
+          : `<div class="work-note">No open issues.</div>`
+      }
+      ${
+        work.openPrs
+          ? `<div class="work-note pr-note">
+        <span class="led on-amber"></span>${plural(work.openPrs, "open PR")}${
+              work.oldestPrAt ? `, oldest from ${relativeTime(work.oldestPrAt)}` : ""
+            }
+      </div>`
+          : ""
+      }
+    </details>
+
     <details class="section zone-cyan">
       <summary><span class="summary-title">SETUP</span><span class="summary-hint">${completeness.passed}/${completeness.total}</span></summary>
       <ul class="checklist">
@@ -187,7 +250,8 @@ function renderCard(repo) {
         <span class="badge">${repo.private ? "private" : "public"}</span>
         ${repo.github_archived ? '<span class="badge">github-archived</span>' : ""}
         ${ciBadge(repo.ci_status)}
-        <span class="badge">${repo.open_issues_count} open issue${repo.open_issues_count === 1 ? "" : "s"}/PRs</span>
+        <span class="badge">${plural(work.openIssues, "issue")}</span>
+        <span class="badge">${plural(work.openPrs, "PR")}</span>
         <span class="badge">★ ${repo.stars}</span>
         ${repo.license_name ? `<span class="badge">${escapeHtml(repo.license_name)}</span>` : ""}
         ${repo.latest_release_tag ? `<span class="badge">${escapeHtml(repo.latest_release_tag)} · ${relativeTime(repo.latest_release_at)}</span>` : ""}

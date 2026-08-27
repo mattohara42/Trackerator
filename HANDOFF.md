@@ -44,10 +44,15 @@ tally strip across the top with counts per tier.
 
 ## What to do next
 
-Every repo still reads `active` with all four note fields empty, so the manual
-half of the tool is going unused. Worth watching whether the attention flag
-changes that — if it just produces a wall of red, the fix is probably making
-status quicker to set rather than adding more prompting.
+Every repo read `active` with all four note fields empty, so the manual half of
+the tool was going unused. The first response was to make status cheap rather
+than to prompt harder for it: it's now five chips on the card face instead of a
+dropdown inside a collapsed section. Worth watching whether that alone gets the
+statuses honest before touching the note fields at all.
+
+`NEXT UP` is the same idea applied to the most valuable empty field. Rather than
+ask what the next step is, the card shows the repo's open issues and flags any
+PR left hanging — the answer usually already exists on GitHub.
 
 Nothing is tagged with a category topic yet, so those badges will stay blank
 until repos get topics on GitHub. Same for the homepage field — setting it on
@@ -55,8 +60,6 @@ each repo is what lights up the "Live link" check and the Live site link.
 
 Roughly in order:
 
-- `open_issues_count` lumps issues and PRs together. That's a GitHub API
-  quirk; separating them costs an extra call per repo.
 - No search, and filtering is still one status dropdown. No filter by category
   or by completeness either, now that both exist.
 - Two unrelated things are both called "archived": GitHub's flag and the
