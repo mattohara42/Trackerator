@@ -22,7 +22,17 @@ netlify dev
 ```
 
 `netlify dev` serves the frontend and the functions together and provisions a
-branch database on the fly, so there's no local Postgres to set up.
+branch database on the fly.
+
+You don't need Netlify, though. The API is a set of plain
+`Request -> Response` handlers in `lib/handlers/`, so it runs against any
+Postgres:
+
+```bash
+export DATABASE_URL=postgres://postgres@127.0.0.1:5432/trackerator
+npm run migrate     # apply the schema
+npm run test:e2e    # real handlers, real database
+```
 
 ## Deploying
 
@@ -78,17 +88,15 @@ commit to them. `SECURITY.md` has the details and the per-host caveats.
 
 ```
 public/                        frontend: one page, vanilla JS, no build step
-netlify/functions/             the API
-  repos.mts                    GET    /api/repos
-  sync.mts                     POST   /api/sync
-  repo-update.mts              PATCH  /api/repos/:id
-  send-to-claude.mts           POST   /api/repos/:id/send-to-claude
-lib/                           GitHub and database code shared by the functions
-netlify/database/migrations/   SQL, applied on deploy
+lib/handlers/                  the API, as plain Request -> Response functions
+lib/                           GitHub, database, and shared logic
+  db/sql.ts                    picks a Postgres driver from the environment
+netlify/functions/             Netlify adapter: a handler plus its route
+netlify/database/migrations/   SQL, applied on deploy or by `npm run migrate`
 ```
 
-Each function declares its own route in an exported `config.path`, so there
-are no redirect rules to keep in sync.
+Nothing outside `netlify/` knows what it is deployed to. Hosting it somewhere
+else means adding an adapter directory, not changing the app.
 
 ## Working on it
 
