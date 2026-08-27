@@ -79,6 +79,13 @@ notes on a routine sync would be the worst bug this app could have.
   `/issues` (where a PR is an issue carrying a `pull_request` key) separates
   them and yields the titles. Answers "what would I pick up here" without
   anyone typing into a field.
+- **The pick** — one repo named at the top of the page with a one-line reason,
+  answering "I have an afternoon, where should it go" rather than "what is the
+  state of everything". Reasons are ranked: failing CI, then a PR left open
+  30+ days, then the marked-active-but-cold contradiction, then waiting
+  issues; ties go to whichever has been left alone longest. Only `active`
+  repos are candidates, on the same reasoning the attention flag uses. Purely
+  derived from data already on the card — no new fields, no new sync cost.
 - **Manual tracking** — status (`active`/`paused`/`idea`/`done`/`archived`),
   progress note, goals, next steps. Status is five chips on the card face —
   one click, no expanding — since burying it in a collapsed dropdown was why

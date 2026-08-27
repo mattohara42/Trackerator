@@ -189,6 +189,69 @@ body {
   font-weight: 700;
 }
 
+/* ---------- The pick ---------- */
+
+/* One line answering "where should this afternoon go". Given the orange of the
+   sync button because, like it, it is a prompt to do something rather than a
+   readout. */
+.pick {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0.9rem 1.5rem 0;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--accent-dim);
+  border-left: 3px solid var(--accent);
+  border-radius: 3px;
+  background: rgba(255, 157, 51, 0.07);
+}
+
+.pick:empty {
+  display: none;
+}
+
+.pick-label {
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+  flex: none;
+}
+
+.pick-repo {
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--accent-dim);
+  text-underline-offset: 3px;
+}
+
+.pick-repo:hover {
+  color: var(--accent);
+}
+
+.pick-why {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* Brief flash so the card is findable after the pick scrolls to it. */
+.card.highlight {
+  animation: card-flash 1.6s ease-out;
+}
+
+@keyframes card-flash {
+  0%, 40% { border-color: var(--accent); }
+  100% { border-color: var(--metal); }
+}
+
 /* ---------- Staleness ---------- */
 
 .staleness {

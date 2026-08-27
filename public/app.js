@@ -8,6 +8,7 @@ const showArchivedToggle = document.getElementById("showArchived");
 const archivedNote = document.getElementById("archivedNote");
 const sortSelect = document.getElementById("sortBy");
 const overview = document.getElementById("overview");
+const pickEl = document.getElementById("pick");
 
 const ARCHIVED_PREF_KEY = "trackerator.showArchived";
 const SORT_PREF_KEY = "trackerator.sortBy";
@@ -53,11 +54,14 @@ const STALENESS_TIERS = [
   { key: "dormant", maxDays: Infinity, label: "DORMANT", led: "" },
 ];
 
-/** Days since the last commit, or null when a repo has no commit history. */
-function daysSinceActivity(repo) {
-  const iso = repo.last_commit_date || repo.pushed_at;
+function daysSince(iso) {
   if (!iso) return null;
   return (Date.now() - new Date(iso).getTime()) / 86400000;
+}
+
+/** Days since the last commit, or null when a repo has no commit history. */
+function daysSinceActivity(repo) {
+  return daysSince(repo.last_commit_date || repo.pushed_at);
 }
 
 function stalenessOf(repo) {
@@ -154,6 +158,85 @@ function workHintOf(work) {
   if (work.openIssues) parts.push(plural(work.openIssues, "issue"));
   if (work.openPrs) parts.push(plural(work.openPrs, "PR"));
   return parts.join(" · ") || "clear";
+}
+
+// ---------------------------------------------------------------------------
+// The pick: one repo to open, and why.
+//
+// The dashboard answers "what is the state of everything". It did not answer
+// "I have an afternoon, where should it go" — which is the question you
+// actually arrive with. Everything here is already computed elsewhere; the
+// only new thing is ranking it and saying one sentence.
+//
+// Only `active` repos are candidates. Paused, idea, done and archived ones are
+// deliberately out of play — the same reasoning the attention flag uses.
+// ---------------------------------------------------------------------------
+
+const PICK_REASONS = [
+  {
+    weight: 100,
+    test: (r) => r.ci_status === "failure",
+    why: () => "CI is failing",
+  },
+  {
+    // Work you began and walked away from beats work you never started.
+    weight: 80,
+    test: (r) => (daysSince(openWorkOf(r).oldestPrAt) ?? 0) > 30,
+    why: (r) => `a PR has been open ${Math.floor(daysSince(openWorkOf(r).oldestPrAt))} days`,
+  },
+  {
+    weight: 60,
+    test: needsAttention,
+    why: (r) => `marked active but untouched for ${Math.floor(daysSinceActivity(r))} days`,
+  },
+  {
+    weight: 40,
+    test: (r) => openWorkOf(r).openIssues > 0,
+    why: (r) => `${plural(openWorkOf(r).openIssues, "open issue")} waiting`,
+  },
+];
+
+function pickOf(inScope) {
+  const ranked = inScope
+    .filter((r) => r.status === "active" && !r.github_archived)
+    .map((repo) => {
+      const reason = PICK_REASONS.find((c) => c.test(repo));
+      return reason ? { repo, weight: reason.weight, why: reason.why(repo) } : null;
+    })
+    .filter(Boolean)
+    // Strongest reason first, then whichever has been left alone longest.
+    .sort(
+      (a, b) =>
+        b.weight - a.weight ||
+        (daysSinceActivity(b.repo) ?? Infinity) - (daysSinceActivity(a.repo) ?? Infinity)
+    );
+
+  return ranked[0] ?? null;
+}
+
+function renderPick(inScope) {
+  const pick = pickOf(inScope);
+
+  if (!pick) {
+    pickEl.innerHTML = inScope.length
+      ? `<span class="pick-label">ALL CLEAR</span><span class="pick-why">Nothing active needs picking up.</span>`
+      : "";
+    return;
+  }
+
+  pickEl.innerHTML = `
+    <span class="pick-label">PICK UP NEXT</span>
+    <button type="button" class="pick-repo" data-id="${pick.repo.id}">${escapeHtml(pick.repo.name)}</button>
+    <span class="pick-why">${escapeHtml(pick.why)}</span>
+  `;
+
+  pickEl.querySelector(".pick-repo").addEventListener("click", () => {
+    const card = grid.querySelector(`.card[data-id="${pick.repo.id}"]`);
+    if (!card) return;
+    card.scrollIntoView({ behavior: "smooth", block: "center" });
+    card.classList.add("highlight");
+    setTimeout(() => card.classList.remove("highlight"), 1600);
+  });
 }
 
 function escapeHtml(str) {
@@ -389,7 +472,9 @@ async function saveRepo(id, cardEl) {
     const idx = repos.findIndex((r) => r.id === id);
     if (idx !== -1) repos[idx] = updated;
 
-    renderOverview(reposInScope());
+    const scope = reposInScope();
+    renderOverview(scope);
+    renderPick(scope);
 
     const indicator = cardEl.querySelector(".save-indicator");
     indicator.classList.add("visible");
@@ -459,6 +544,7 @@ function render() {
   visible.forEach((repo) => grid.appendChild(renderCard(repo)));
 
   renderOverview(inScope);
+  renderPick(inScope);
 
   archivedNote.textContent = hiddenArchived
     ? `${hiddenArchived} archived repo${hiddenArchived === 1 ? "" : "s"} hidden`
