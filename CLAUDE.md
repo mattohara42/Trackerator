@@ -11,6 +11,12 @@ notes** (progress, goals, next steps) that a sync never overwrites.
 It is deliberately single-user and personal — not a product. Design decisions
 should favor "useful to one person glancing at it" over generality.
 
+**The app has no authentication of its own** — every `/api/*` route is
+unauthenticated and the login in front of it is the entire access control
+model. `docs/PUBLIC_RELEASE_REVIEW.md` is the full security review and the plan
+for opening it up; `SECURITY.md` is the short version for anyone deploying an
+instance. Read the review before adding a route or widening what one returns.
+
 Live at **https://trackerator.netlify.app** (gated behind Netlify team SSO
 login — see Access below).
 
@@ -28,7 +34,11 @@ netlify/functions/*.mts     serverless API (Node, runtimeAPIVersion 2)
   send-to-claude.mts          POST   /api/repos/:id/send-to-claude
 lib/                        shared logic used by the functions
   db.ts                       Netlify DB (Postgres) queries via @netlify/database
-  github.ts                   GitHub REST calls + CLAUDE.md note writing
+  github.ts                   GitHub REST calls
+  notes.ts                    note sanitising + CLAUDE.md content building
+  status.ts                   the canonical status vocabulary + validator
+  http.ts                     json/error responses, repo-id parsing
+test/                       node:test suites (`npm test`), no build step
 netlify/database/migrations/  SQL migrations, applied automatically on deploy
 ```
 
@@ -197,12 +207,19 @@ netlify dev            # runs functions + frontend, provisions a branch DB
 - Development branch: `claude/personal-repo-tracker-z8zxi3`.
 - **Matt has asked for changes to be merged automatically as we go** — validate,
   push, open a PR, and squash-merge without pausing for approval on each one.
-- Validate before pushing. There is no CI on this repo, so a bad merge deploys
-  straight to production. Run `npm run typecheck` (covers `lib/**/*.ts` and
-  `netlify/functions/**/*.mts` via the checked-in `tsconfig.json`). For
-  frontend changes, serve `public/` against a stub API and drive it with
-  Playwright — that is how the archived toggle and the sync error handling
-  were verified.
+- Validate before pushing with **`npm run check`** (typecheck + tests). CI now
+  runs the same thing on every push and PR (`.github/workflows/ci.yml`), but
+  `main` still deploys straight to production, so run it locally first.
+  - `npm test` is `node --test` over `test/*.test.ts`. Node 22.18+ strips
+    types natively, so there is still **no build step and no test framework**.
+  - Tests import `.ts` files *with the extension* (`../lib/notes.ts`) because
+    that is the only specifier Node's type stripping resolves. `lib/` and
+    `netlify/functions/` keep their extensionless imports, which is why the
+    pure logic lives in modules with no relative imports of their own.
+  - For frontend changes, serve `public/` against a stub API and drive it with
+    Playwright — that is how the archived toggle, the sync error handling, and
+    the S3/S4 XSS fixes were verified. **Check the harness fails against the
+    pre-fix code**; a security test that passes either way proves nothing.
 - **Netlify builds a deploy preview for every PR**, at
   `deploy-preview-<number>--trackerator.netlify.app`, and the bot posts the
   link as a PR comment once it's ready. Previews run the real functions

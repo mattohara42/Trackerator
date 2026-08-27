@@ -1,0 +1,29 @@
+name: CI
+
+# There was no CI here, and `main` deploys straight to production — so a bad
+# merge went live before anyone could look at it. This runs what a contributor
+# would run locally, on every push and pull request.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # 22.18+ strips TypeScript types natively, which is what lets
+          # `node --test` run the .ts test files with no build step.
+          node-version: "22"
+          cache: npm
+
+      # `ci`, not `install`: installs exactly what the lockfile pins.
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm test

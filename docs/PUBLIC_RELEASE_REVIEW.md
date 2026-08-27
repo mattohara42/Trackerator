@@ -26,6 +26,11 @@ comparison.
 
 Ordered by what they'd cost if the site were made public tomorrow.
 
+> **Stage 1 landed 2026-08-27.** S3, S4, S9, S11 and S13 are fixed, with tests;
+> S14 is partly done (LICENSE, SECURITY.md, CI, `strict`). Their sections are
+> kept rather than deleted, because the reasoning is what stops each one being
+> reintroduced. Everything else below is still open.
+
 ### S1 · Critical · There is no authentication in the application
 
 `netlify/functions/*.mts` — all four handlers
@@ -63,7 +68,7 @@ is a reasonable ask of yourself and an unreasonable one of a stranger.
 **Fix:** per-account identity and least-privilege credentials — a GitHub App, so
 the stored artefact is an installation id rather than a long-lived token. Part 3.
 
-### S3 · High · Stored XSS through the unvalidated `status` field
+### S3 · ~~High~~ FIXED · Stored XSS through the unvalidated `status` field
 
 `netlify/functions/repo-update.mts:20` → `lib/db.ts:148` → `public/app.js:268,358`
 
@@ -91,7 +96,7 @@ an attacker ignores.
 400; escape `noteSummary` at the sink as well. Two changes, both one-liners, and
 the field is genuinely fixed rather than fixed at one end.
 
-### S4 · High · `href` values are escaped but never scheme-checked
+### S4 · ~~High~~ FIXED · `href` values are escaped but never scheme-checked
 
 `public/app.js:276, 314, 389, 390`
 
@@ -162,7 +167,7 @@ Clickjacking a page with a "SEND TO CLAUDE" button is not a theoretical concern.
 pulls fonts from Google, so `style-src`/`font-src` need those origins — or
 self-host the two fonts and keep the policy tight.
 
-### S9 · Medium · Note content is injected into an agent instruction file unchecked
+### S9 · ~~Medium~~ FIXED · Note content is injected into an agent instruction file unchecked
 
 `send-to-claude.mts:21`, `lib/github.ts:327`
 
@@ -202,7 +207,7 @@ id. Keep the one genuinely useful exception — the "token not set at deploy tim
 message (`github.ts:214`) has earned its place — as an explicitly allow-listed
 case rather than a side effect of relaying everything.
 
-### S11 · Low · Weak id parsing, and two different ways of doing it
+### S11 · ~~Low~~ FIXED · Weak id parsing, and two different ways of doing it
 
 `repo-update.mts:10` uses `parts[parts.length - 1]`; `send-to-claude.mts:12` uses
 `parts[2]`. Both then accept any finite number — `1.5`, `-3`, `0` all pass
@@ -225,7 +230,7 @@ sync, and the failure will look like a broken app rather than a limit.
 background function (Netlify allows 15 minutes) with the UI polling for
 completion.
 
-### S13 · Low · A repository rename can wedge sync permanently
+### S13 · ~~Low~~ FIXED · A repository rename can wedge sync permanently
 
 `migration.sql` declares `full_name TEXT NOT NULL UNIQUE`, but `upsertRepo`
 (`lib/db.ts:110`) only handles `ON CONFLICT (id)`. Delete `me/thing` and create a
@@ -238,7 +243,7 @@ the UI. The database has to be edited by hand.
 multi-tenant schema anyway; either way the upsert needs to handle it, and sync
 should reconcile deletions rather than only ever adding.
 
-### S14 · Housekeeping for a public repository
+### S14 · ~~Housekeeping~~ PARTLY FIXED · Housekeeping for a public repository
 
 No `LICENSE` (the completeness meter would score its own repository 7/8), no
 `SECURITY.md` and so no disclosure route, no `CONTRIBUTING.md`, no CI, and
