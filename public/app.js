@@ -41,13 +41,7 @@ function ciBadge(status) {
   return `<span class="badge"><span class="led ${led}"></span>${label}</span>`;
 }
 
-const STATUS_LED = {
-  active: "on-green",
-  paused: "on-amber",
-  idea: "on-blue",
-  done: "on-green",
-  archived: "",
-};
+const STATUSES = ["active", "paused", "idea", "done", "archived"];
 
 // Deliberately not reusing the words in STATUS_LED: that field is what you
 // *say* a repo is, this is what the commit history actually shows. Keeping the
@@ -155,7 +149,9 @@ function renderCard(repo) {
         <span class="staleness"><span class="led ${stale.led}"></span>${stale.label}</span>
       </span>
     </div>
-    ${flagged ? `<div class="attention-flag">Marked active, untouched for ${Math.floor(stale.days)} days</div>` : ""}
+    <div class="attention-flag"${flagged ? "" : " hidden"}>${
+      flagged ? `Marked active, untouched for ${Math.floor(stale.days)} days` : ""
+    }</div>
     <div class="meter" title="${completeness.passed} of ${completeness.total} setup checks pass">
       ${completeness.results.map((c) => `<span class="seg ${c.pass ? "on" : ""}"></span>`).join("")}
       <span class="meter-score">${completeness.passed}/${completeness.total}</span>
@@ -163,6 +159,18 @@ function renderCard(repo) {
     <div class="description">${escapeHtml(repo.description) || "<em>No description</em>"}</div>
     <div class="last-commit">
       ${repo.last_commit_message ? `"${escapeHtml(repo.last_commit_message)}" — ` : ""}${relativeTime(repo.last_commit_date)}
+    </div>
+
+    <div class="status-strip" role="radiogroup" aria-label="Status for ${escapeHtml(repo.name)}">
+      ${STATUSES.map(
+        (s) => `
+        <label class="status-chip" data-status="${s}">
+          <input type="radio" name="status-${repo.id}" data-field="status" value="${s}" ${
+            repo.status === s ? "checked" : ""
+          } />
+          <span class="chip-face"><span class="led"></span>${s.toUpperCase()}</span>
+        </label>`
+      ).join("")}
     </div>
 
     <details class="section zone-cyan">
@@ -188,18 +196,7 @@ function renderCard(repo) {
     </details>
 
     <details class="section zone-green">
-      <summary><span class="summary-title">NOTES</span><span class="summary-hint">${noteSummary}</span></summary>
-      <div class="field">
-        <label for="status-${repo.id}">Status</label>
-        <div class="field-row">
-          <span class="led status-led ${STATUS_LED[repo.status] || ""}"></span>
-          <select id="status-${repo.id}" data-field="status">
-            ${["active", "paused", "idea", "done", "archived"]
-              .map((s) => `<option value="${s}" ${repo.status === s ? "selected" : ""}>${s.toUpperCase()}</option>`)
-              .join("")}
-          </select>
-        </div>
-      </div>
+      <summary><span class="summary-title">NOTES</span><span class="summary-hint notes-hint">${noteSummary}</span></summary>
       <div class="field">
         <label for="progress-${repo.id}">Progress</label>
         <textarea id="progress-${repo.id}" data-field="progress_note" placeholder="Where things stand...">${escapeHtml(repo.progress_note)}</textarea>
@@ -236,19 +233,37 @@ function renderCard(repo) {
   `;
 
   el.querySelectorAll("[data-field]").forEach((input) => {
-    const eventName = input.tagName === "SELECT" ? "change" : "input";
-    input.addEventListener(eventName, () => scheduleSave(repo.id, el));
-  });
-
-  const statusSelect = el.querySelector('[data-field="status"]');
-  const statusLed = el.querySelector(".status-led");
-  statusSelect.addEventListener("change", () => {
-    statusLed.className = `led status-led ${STATUS_LED[statusSelect.value] || ""}`;
+    input.addEventListener("input", () => {
+      refreshDerived(el, repo);
+      scheduleSave(repo.id, el);
+    });
   });
 
   el.querySelector(".btn-send-note").addEventListener("click", () => sendNote(repo.id, el));
 
   return el;
+}
+
+// What a card shows about itself that depends on the fields you can edit.
+// Updated in place rather than by re-rendering: marking a repo paused should
+// visibly clear its red flag, but the card shouldn't resort itself out from
+// under the click that did it.
+function refreshDerived(el, repo) {
+  const status = el.querySelector('[data-field="status"]:checked')?.value || repo.status;
+  const filled = ["progress_note", "goals", "next_steps"].filter((f) =>
+    (el.querySelector(`[data-field="${f}"]`)?.value || "").trim()
+  ).length;
+
+  el.querySelector(".notes-hint").textContent =
+    `${status.toUpperCase()}${filled ? ` · ${filled}/3 filled` : ""}`;
+
+  const flagged = needsAttention({ ...repo, status });
+  el.classList.toggle("needs-attention", flagged);
+  const flag = el.querySelector(".attention-flag");
+  flag.hidden = !flagged;
+  if (flagged) {
+    flag.textContent = `Marked active, untouched for ${Math.floor(stalenessOf(repo).days)} days`;
+  }
 }
 
 async function sendNote(id, cardEl) {
@@ -295,6 +310,7 @@ function scheduleSave(id, cardEl) {
 async function saveRepo(id, cardEl) {
   const fields = {};
   cardEl.querySelectorAll("[data-field]").forEach((input) => {
+    if (input.type === "radio" && !input.checked) return;
     fields[input.dataset.field] = input.value;
   });
 
@@ -308,6 +324,8 @@ async function saveRepo(id, cardEl) {
     const updated = await res.json();
     const idx = repos.findIndex((r) => r.id === id);
     if (idx !== -1) repos[idx] = updated;
+
+    renderOverview(reposInScope());
 
     const indicator = cardEl.querySelector(".save-indicator");
     indicator.classList.add("visible");
@@ -329,6 +347,12 @@ const SORTERS = {
 
 function sortRepos(list, key) {
   return [...list].sort(SORTERS[key] || SORTERS.attention);
+}
+
+// GitHub-archived repos are frozen by definition, so they're noise in a view
+// meant to surface what needs attention. Kept in the DB, just hidden here.
+function reposInScope() {
+  return showArchivedToggle.checked ? repos : repos.filter((r) => !r.github_archived);
 }
 
 function renderOverview(inScope) {
@@ -357,11 +381,7 @@ function renderOverview(inScope) {
 
 function render() {
   const filter = statusFilter.value;
-  const showArchived = showArchivedToggle.checked;
-
-  // GitHub-archived repos are frozen by definition, so they're noise in a view
-  // meant to surface what needs attention. Kept in the DB, just hidden here.
-  const inScope = showArchived ? repos : repos.filter((r) => !r.github_archived);
+  const inScope = reposInScope();
   const hiddenArchived = repos.length - inScope.length;
 
   const visible = sortRepos(

@@ -461,9 +461,6 @@ textarea:focus {
   font-size: 0.85rem;
 }
 
-.field select {
-  align-self: flex-start;
-}
 
 .save-indicator {
   font-size: 0.68rem;
@@ -515,6 +512,81 @@ textarea:focus {
   font-size: 0.68rem;
   letter-spacing: 0.04em;
   color: var(--muted);
+}
+
+/* ---------- Status strip ---------- */
+
+/* Status is the field most worth correcting, and it used to sit in a dropdown
+   inside a collapsed section — three interactions from a standing start. On
+   the card face as a bank of lit buttons it is one. Sits between the synced
+   facts above and the notes below, which is the same seam as the sync-owned /
+   user-owned split in the schema. */
+.status-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  border-top: 1px solid var(--metal);
+  padding-top: 0.6rem;
+}
+
+.status-chip {
+  position: relative;
+  display: inline-flex;
+}
+
+.status-chip[data-status="active"] { --chip-led: var(--led-green); }
+.status-chip[data-status="paused"] { --chip-led: var(--led-amber); }
+.status-chip[data-status="idea"] { --chip-led: var(--led-blue); }
+.status-chip[data-status="done"] { --chip-led: var(--panel-cyan); }
+.status-chip[data-status="archived"] { --chip-led: var(--metal-light); }
+
+/* Kept in the tab order and focusable — the chip face is just its skin. */
+.status-chip input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+}
+
+.chip-face {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.45rem;
+  border: 1px solid var(--metal);
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--muted);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.chip-face .led {
+  background: var(--led-off);
+}
+
+.status-chip:hover .chip-face {
+  color: var(--text);
+  border-color: var(--metal-light);
+}
+
+.status-chip input:checked + .chip-face {
+  color: var(--text);
+  border-color: var(--chip-led);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.status-chip input:checked + .chip-face .led {
+  background: var(--chip-led);
+  box-shadow: 0 0 6px var(--chip-led);
+}
+
+.status-chip input:focus-visible + .chip-face {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 /* ---------- Compact card: header meta, meter, sections ---------- */
