@@ -36,6 +36,14 @@ Ordered by what they'd cost if the site were made public tomorrow.
 
 `netlify/functions/*.mts` — all four handlers
 
+> **Update, 2026-08-27.** This finding was worse than written. Netlify's SSO
+> gate on this site was scoped to `non-production-projects`, so it covered
+> deploy previews and left the **production URL open** — everything below was
+> reachable from the internet, not merely from behind a login. The scope is now
+> `all`. Two lessons: the boolean `requiresSSOTeamLogin: true` says nothing on
+> its own, and depending on a host's gate means depending on a setting nothing
+> in this repository can see or test.
+
 Not one handler checks who is calling. `repos.mts:9` lists the database,
 `sync.mts:11` spends the owner's GitHub token, `repo-update.mts:19` writes
 notes, and `send-to-claude.mts:38` **commits a file to a GitHub repository**.
