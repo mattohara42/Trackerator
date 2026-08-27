@@ -284,9 +284,23 @@ Locally, both come from `.env` (gitignored) and `netlify dev` loads them.
 ### Access
 
 The live site requires **Netlify team SSO login** (`requiresSSOTeamLogin`).
-This matters: the app holds a GitHub token with repo **write** access, so the
-site must never be left publicly reachable. Note the setting reported scope
-`"all"` — it may apply team-wide rather than to this site alone.
+This matters more than for most sites: the app has no authentication of its
+own, so that gate is the whole access control model, and the token behind it
+can write to your repositories.
+
+**The gate has a scope, and it was set wrong (found and fixed 2026-08-27.)**
+Netlify's `update-visitor-access-controls` takes an `appliesTo` of either
+`all-projects` or `non-production-projects`. This site was on
+**`non-production-projects`**, which gates deploy previews and branch deploys
+and leaves the **production URL open to the internet** — with an unauthenticated
+`POST /api/repos/:id/send-to-claude` behind it. It now reads `all`.
+
+Two things follow. **Check the scope, not just the boolean**:
+`requiresSSOTeamLogin: true` on its own tells you nothing about production —
+read `whichProjectsRequireSSOTeamLogin` alongside it, via the Netlify project
+reader or the UI. And this is the assumption `docs/PUBLIC_RELEASE_REVIEW.md`
+was written on top of, so S1 was a live exposure for as long as that setting
+stood, not the theoretical one the review described.
 
 ## Local development
 
