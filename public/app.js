@@ -8,6 +8,7 @@ const showArchivedToggle = document.getElementById("showArchived");
 const archivedNote = document.getElementById("archivedNote");
 const sortSelect = document.getElementById("sortBy");
 const overview = document.getElementById("overview");
+const pickEl = document.getElementById("pick");
 
 const ARCHIVED_PREF_KEY = "trackerator.showArchived";
 const SORT_PREF_KEY = "trackerator.sortBy";
@@ -41,13 +42,7 @@ function ciBadge(status) {
   return `<span class="badge"><span class="led ${led}"></span>${label}</span>`;
 }
 
-const STATUS_LED = {
-  active: "on-green",
-  paused: "on-amber",
-  idea: "on-blue",
-  done: "on-green",
-  archived: "",
-};
+const STATUSES = ["active", "paused", "idea", "done", "archived"];
 
 // Deliberately not reusing the words in STATUS_LED: that field is what you
 // *say* a repo is, this is what the commit history actually shows. Keeping the
@@ -59,11 +54,14 @@ const STALENESS_TIERS = [
   { key: "dormant", maxDays: Infinity, label: "DORMANT", led: "" },
 ];
 
-/** Days since the last commit, or null when a repo has no commit history. */
-function daysSinceActivity(repo) {
-  const iso = repo.last_commit_date || repo.pushed_at;
+function daysSince(iso) {
   if (!iso) return null;
   return (Date.now() - new Date(iso).getTime()) / 86400000;
+}
+
+/** Days since the last commit, or null when a repo has no commit history. */
+function daysSinceActivity(repo) {
+  return daysSince(repo.last_commit_date || repo.pushed_at);
 }
 
 function stalenessOf(repo) {
@@ -128,6 +126,119 @@ function categoryOf(repo) {
   return null;
 }
 
+// ---------------------------------------------------------------------------
+// Open work: the closest thing to an answer for "what would I do next here",
+// and unlike the Next steps field it needs no typing. Issues and PRs are
+// counted separately because they mean different things — an issue is a thing
+// to decide, an open PR is a thing you started and walked away from.
+// ---------------------------------------------------------------------------
+
+function openWorkOf(repo) {
+  let issues = [];
+  try {
+    const parsed = JSON.parse(repo.top_issues || "[]");
+    if (Array.isArray(parsed)) issues = parsed;
+  } catch {
+    // Malformed JSON means no titles to show, not a broken card.
+  }
+  return {
+    issues,
+    openIssues: repo.open_issues ?? 0,
+    openPrs: repo.open_prs ?? 0,
+    oldestPrAt: repo.oldest_pr_at || null,
+  };
+}
+
+function plural(n, word) {
+  return `${n} ${word}${n === 1 ? "" : "s"}`;
+}
+
+function workHintOf(work) {
+  const parts = [];
+  if (work.openIssues) parts.push(plural(work.openIssues, "issue"));
+  if (work.openPrs) parts.push(plural(work.openPrs, "PR"));
+  return parts.join(" · ") || "clear";
+}
+
+// ---------------------------------------------------------------------------
+// The pick: one repo to open, and why.
+//
+// The dashboard answers "what is the state of everything". It did not answer
+// "I have an afternoon, where should it go" — which is the question you
+// actually arrive with. Everything here is already computed elsewhere; the
+// only new thing is ranking it and saying one sentence.
+//
+// Only `active` repos are candidates. Paused, idea, done and archived ones are
+// deliberately out of play — the same reasoning the attention flag uses.
+// ---------------------------------------------------------------------------
+
+const PICK_REASONS = [
+  {
+    weight: 100,
+    test: (r) => r.ci_status === "failure",
+    why: () => "CI is failing",
+  },
+  {
+    // Work you began and walked away from beats work you never started.
+    weight: 80,
+    test: (r) => (daysSince(openWorkOf(r).oldestPrAt) ?? 0) > 30,
+    why: (r) => `a PR has been open ${Math.floor(daysSince(openWorkOf(r).oldestPrAt))} days`,
+  },
+  {
+    weight: 60,
+    test: needsAttention,
+    why: (r) => `marked active but untouched for ${Math.floor(daysSinceActivity(r))} days`,
+  },
+  {
+    weight: 40,
+    test: (r) => openWorkOf(r).openIssues > 0,
+    why: (r) => `${plural(openWorkOf(r).openIssues, "open issue")} waiting`,
+  },
+];
+
+function pickOf(inScope) {
+  const ranked = inScope
+    .filter((r) => r.status === "active" && !r.github_archived)
+    .map((repo) => {
+      const reason = PICK_REASONS.find((c) => c.test(repo));
+      return reason ? { repo, weight: reason.weight, why: reason.why(repo) } : null;
+    })
+    .filter(Boolean)
+    // Strongest reason first, then whichever has been left alone longest.
+    .sort(
+      (a, b) =>
+        b.weight - a.weight ||
+        (daysSinceActivity(b.repo) ?? Infinity) - (daysSinceActivity(a.repo) ?? Infinity)
+    );
+
+  return ranked[0] ?? null;
+}
+
+function renderPick(inScope) {
+  const pick = pickOf(inScope);
+
+  if (!pick) {
+    pickEl.innerHTML = inScope.length
+      ? `<span class="pick-label">ALL CLEAR</span><span class="pick-why">Nothing active needs picking up.</span>`
+      : "";
+    return;
+  }
+
+  pickEl.innerHTML = `
+    <span class="pick-label">PICK UP NEXT</span>
+    <button type="button" class="pick-repo" data-id="${pick.repo.id}">${escapeHtml(pick.repo.name)}</button>
+    <span class="pick-why">${escapeHtml(pick.why)}</span>
+  `;
+
+  pickEl.querySelector(".pick-repo").addEventListener("click", () => {
+    const card = grid.querySelector(`.card[data-id="${pick.repo.id}"]`);
+    if (!card) return;
+    card.scrollIntoView({ behavior: "smooth", block: "center" });
+    card.classList.add("highlight");
+    setTimeout(() => card.classList.remove("highlight"), 1600);
+  });
+}
+
 function escapeHtml(str) {
   return (str ?? "").replace(/[&<>"']/g, (c) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
@@ -140,6 +251,7 @@ function renderCard(repo) {
   const completeness = completenessOf(repo);
   const category = categoryOf(repo);
   const topics = topicsOf(repo);
+  const work = openWorkOf(repo);
   const filledNotes = [repo.progress_note, repo.goals, repo.next_steps].filter((v) => (v || "").trim()).length;
   const noteSummary = `${repo.status.toUpperCase()}${filledNotes ? ` · ${filledNotes}/3 filled` : ""}`;
 
@@ -155,7 +267,9 @@ function renderCard(repo) {
         <span class="staleness"><span class="led ${stale.led}"></span>${stale.label}</span>
       </span>
     </div>
-    ${flagged ? `<div class="attention-flag">Marked active, untouched for ${Math.floor(stale.days)} days</div>` : ""}
+    <div class="attention-flag"${flagged ? "" : " hidden"}>${
+      flagged ? `Marked active, untouched for ${Math.floor(stale.days)} days` : ""
+    }</div>
     <div class="meter" title="${completeness.passed} of ${completeness.total} setup checks pass">
       ${completeness.results.map((c) => `<span class="seg ${c.pass ? "on" : ""}"></span>`).join("")}
       <span class="meter-score">${completeness.passed}/${completeness.total}</span>
@@ -164,6 +278,46 @@ function renderCard(repo) {
     <div class="last-commit">
       ${repo.last_commit_message ? `"${escapeHtml(repo.last_commit_message)}" — ` : ""}${relativeTime(repo.last_commit_date)}
     </div>
+
+    <div class="status-strip" role="radiogroup" aria-label="Status for ${escapeHtml(repo.name)}">
+      ${STATUSES.map(
+        (s) => `
+        <label class="status-chip" data-status="${s}">
+          <input type="radio" name="status-${repo.id}" data-field="status" value="${s}" ${
+            repo.status === s ? "checked" : ""
+          } />
+          <span class="chip-face"><span class="led"></span>${s.toUpperCase()}</span>
+        </label>`
+      ).join("")}
+    </div>
+
+    <details class="section zone-yellow">
+      <summary><span class="summary-title">NEXT UP</span><span class="summary-hint">${workHintOf(work)}</span></summary>
+      ${
+        work.issues.length
+          ? `<ul class="issue-list">
+        ${work.issues
+          .map(
+            (i) =>
+              `<li><a href="${escapeHtml(i.url)}" target="_blank" rel="noopener"><span class="issue-num">#${escapeHtml(
+                String(i.number)
+              )}</span>${escapeHtml(i.title)}</a></li>`
+          )
+          .join("")}
+      </ul>
+      ${work.openIssues > work.issues.length ? `<div class="work-note">+${work.openIssues - work.issues.length} more open</div>` : ""}`
+          : `<div class="work-note">No open issues.</div>`
+      }
+      ${
+        work.openPrs
+          ? `<div class="work-note pr-note">
+        <span class="led on-amber"></span>${plural(work.openPrs, "open PR")}${
+              work.oldestPrAt ? `, oldest from ${relativeTime(work.oldestPrAt)}` : ""
+            }
+      </div>`
+          : ""
+      }
+    </details>
 
     <details class="section zone-cyan">
       <summary><span class="summary-title">SETUP</span><span class="summary-hint">${completeness.passed}/${completeness.total}</span></summary>
@@ -179,7 +333,8 @@ function renderCard(repo) {
         <span class="badge">${repo.private ? "private" : "public"}</span>
         ${repo.github_archived ? '<span class="badge">github-archived</span>' : ""}
         ${ciBadge(repo.ci_status)}
-        <span class="badge">${repo.open_issues_count} open issue${repo.open_issues_count === 1 ? "" : "s"}/PRs</span>
+        <span class="badge">${plural(work.openIssues, "issue")}</span>
+        <span class="badge">${plural(work.openPrs, "PR")}</span>
         <span class="badge">★ ${repo.stars}</span>
         ${repo.license_name ? `<span class="badge">${escapeHtml(repo.license_name)}</span>` : ""}
         ${repo.latest_release_tag ? `<span class="badge">${escapeHtml(repo.latest_release_tag)} · ${relativeTime(repo.latest_release_at)}</span>` : ""}
@@ -188,18 +343,7 @@ function renderCard(repo) {
     </details>
 
     <details class="section zone-green">
-      <summary><span class="summary-title">NOTES</span><span class="summary-hint">${noteSummary}</span></summary>
-      <div class="field">
-        <label for="status-${repo.id}">Status</label>
-        <div class="field-row">
-          <span class="led status-led ${STATUS_LED[repo.status] || ""}"></span>
-          <select id="status-${repo.id}" data-field="status">
-            ${["active", "paused", "idea", "done", "archived"]
-              .map((s) => `<option value="${s}" ${repo.status === s ? "selected" : ""}>${s.toUpperCase()}</option>`)
-              .join("")}
-          </select>
-        </div>
-      </div>
+      <summary><span class="summary-title">NOTES</span><span class="summary-hint notes-hint">${noteSummary}</span></summary>
       <div class="field">
         <label for="progress-${repo.id}">Progress</label>
         <textarea id="progress-${repo.id}" data-field="progress_note" placeholder="Where things stand...">${escapeHtml(repo.progress_note)}</textarea>
@@ -236,19 +380,37 @@ function renderCard(repo) {
   `;
 
   el.querySelectorAll("[data-field]").forEach((input) => {
-    const eventName = input.tagName === "SELECT" ? "change" : "input";
-    input.addEventListener(eventName, () => scheduleSave(repo.id, el));
-  });
-
-  const statusSelect = el.querySelector('[data-field="status"]');
-  const statusLed = el.querySelector(".status-led");
-  statusSelect.addEventListener("change", () => {
-    statusLed.className = `led status-led ${STATUS_LED[statusSelect.value] || ""}`;
+    input.addEventListener("input", () => {
+      refreshDerived(el, repo);
+      scheduleSave(repo.id, el);
+    });
   });
 
   el.querySelector(".btn-send-note").addEventListener("click", () => sendNote(repo.id, el));
 
   return el;
+}
+
+// What a card shows about itself that depends on the fields you can edit.
+// Updated in place rather than by re-rendering: marking a repo paused should
+// visibly clear its red flag, but the card shouldn't resort itself out from
+// under the click that did it.
+function refreshDerived(el, repo) {
+  const status = el.querySelector('[data-field="status"]:checked')?.value || repo.status;
+  const filled = ["progress_note", "goals", "next_steps"].filter((f) =>
+    (el.querySelector(`[data-field="${f}"]`)?.value || "").trim()
+  ).length;
+
+  el.querySelector(".notes-hint").textContent =
+    `${status.toUpperCase()}${filled ? ` · ${filled}/3 filled` : ""}`;
+
+  const flagged = needsAttention({ ...repo, status });
+  el.classList.toggle("needs-attention", flagged);
+  const flag = el.querySelector(".attention-flag");
+  flag.hidden = !flagged;
+  if (flagged) {
+    flag.textContent = `Marked active, untouched for ${Math.floor(stalenessOf(repo).days)} days`;
+  }
 }
 
 async function sendNote(id, cardEl) {
@@ -295,6 +457,7 @@ function scheduleSave(id, cardEl) {
 async function saveRepo(id, cardEl) {
   const fields = {};
   cardEl.querySelectorAll("[data-field]").forEach((input) => {
+    if (input.type === "radio" && !input.checked) return;
     fields[input.dataset.field] = input.value;
   });
 
@@ -308,6 +471,10 @@ async function saveRepo(id, cardEl) {
     const updated = await res.json();
     const idx = repos.findIndex((r) => r.id === id);
     if (idx !== -1) repos[idx] = updated;
+
+    const scope = reposInScope();
+    renderOverview(scope);
+    renderPick(scope);
 
     const indicator = cardEl.querySelector(".save-indicator");
     indicator.classList.add("visible");
@@ -329,6 +496,12 @@ const SORTERS = {
 
 function sortRepos(list, key) {
   return [...list].sort(SORTERS[key] || SORTERS.attention);
+}
+
+// GitHub-archived repos are frozen by definition, so they're noise in a view
+// meant to surface what needs attention. Kept in the DB, just hidden here.
+function reposInScope() {
+  return showArchivedToggle.checked ? repos : repos.filter((r) => !r.github_archived);
 }
 
 function renderOverview(inScope) {
@@ -357,11 +530,7 @@ function renderOverview(inScope) {
 
 function render() {
   const filter = statusFilter.value;
-  const showArchived = showArchivedToggle.checked;
-
-  // GitHub-archived repos are frozen by definition, so they're noise in a view
-  // meant to surface what needs attention. Kept in the DB, just hidden here.
-  const inScope = showArchived ? repos : repos.filter((r) => !r.github_archived);
+  const inScope = reposInScope();
   const hiddenArchived = repos.length - inScope.length;
 
   const visible = sortRepos(
@@ -375,6 +544,7 @@ function render() {
   visible.forEach((repo) => grid.appendChild(renderCard(repo)));
 
   renderOverview(inScope);
+  renderPick(inScope);
 
   archivedNote.textContent = hiddenArchived
     ? `${hiddenArchived} archived repo${hiddenArchived === 1 ? "" : "s"} hidden`
