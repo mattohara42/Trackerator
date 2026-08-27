@@ -98,6 +98,20 @@ specifier Node's type stripping resolves, and it is what lets `test/e2e.test.ts`
 import the real handlers and run them. esbuild (which bundles the Netlify
 functions) resolves the literal path, so both paths work from the same source.
 
+**Import `@netlify/database` statically, and never lazily.** It was briefly
+reached through `createRequire(...)` so a non-Netlify host would not need the
+package — and it took production down: esbuild does not trace `createRequire`,
+so the module was left out of the deployed bundle and every endpoint returned
+`Cannot find module '@netlify/database'`. `test/bundling.test.ts` guards it.
+
+The deeper lesson is about the check, not the code. The bundling check that was
+supposed to prove the functions build ran with
+`--external:@netlify/database` — excluding from the test the exact module whose
+inclusion was in doubt, so it passed while the real build was broken. **When
+verifying that something bundles, bundle it without externals**, and confirm
+the dependency is actually in the output (`grep` the bundle, or check its size:
+74KB without the driver, 608KB with it).
+
 ### The artwork
 
 Two assets, doing two different jobs, both derived from one source image by
