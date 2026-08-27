@@ -1,16 +1,9 @@
-import type { Context, Config } from "@netlify/functions";
-import { listRepos } from "../../lib/db";
+// Netlify adapter. The handler itself lives in `lib/handlers/` as a plain
+// Request -> Response function; all this file adds is Netlify's routing, so a
+// second host needs its own adapter and nothing else.
+import type { Config } from "@netlify/functions";
 
-export default async (req: Request, context: Context) => {
-  if (req.method !== "GET") {
-    return new Response("Method Not Allowed", { status: 405 });
-  }
-
-  const repos = await listRepos();
-  return new Response(JSON.stringify(repos), {
-    headers: { "Content-Type": "application/json" },
-  });
-};
+export { default } from "../../lib/handlers/repos.ts";
 
 export const config: Config = {
   path: "/api/repos",

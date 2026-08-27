@@ -27,20 +27,27 @@ public/                     static frontend (vanilla HTML/CSS/JS, no framework)
   index.html                  shell + topbar + empty state
   app.js                      card rendering, autosave, sync, send-to-claude
   style.css                   retro control-panel theme
-netlify/functions/*.mts     serverless API (Node, runtimeAPIVersion 2)
-  repos.mts                   GET    /api/repos
-  sync.mts                    POST   /api/sync
-  repo-update.mts             PATCH  /api/repos/:id
-  send-to-claude.mts          POST   /api/repos/:id/send-to-claude
-lib/                        shared logic used by the functions
-  db.ts                       Netlify DB (Postgres) queries via @netlify/database
+lib/handlers/*.ts           the API, as plain Request -> Response functions
+  repos.ts                    GET    /api/repos
+  sync.ts                     POST   /api/sync
+  repo-update.ts              PATCH  /api/repos/:id
+  send-to-claude.ts           POST   /api/repos/:id/send-to-claude
+netlify/functions/*.mts     Netlify adapter: re-exports a handler + config.path
+lib/                        shared logic
+  db.ts                       repo queries + cross-driver row normalising
+  db/sql.ts                   THE DATABASE SEAM — picks a driver, see below
+  env.ts                      env(name), replacing the Netlify.env global
+  migrate.ts                  portable migration runner
   github.ts                   GitHub REST calls
   notes.ts                    note sanitising + CLAUDE.md content building
   status.ts                   the canonical status vocabulary + validator
   http.ts                     json/error responses, repo-id parsing
   headers.ts                  reads the security headers back out of netlify.toml
+scripts/migrate.ts          CLI: apply migrations to DATABASE_URL
 test/                       node:test suites (`npm test`), no build step
-netlify/database/migrations/  SQL migrations, applied automatically on deploy
+  e2e.test.ts                 real handlers against real Postgres (needs DATABASE_URL)
+netlify/database/migrations/  SQL migrations; Netlify applies them on deploy,
+                              `npm run migrate` applies them anywhere else
 ```
 
 Routes are declared **in-code** via each function's exported `config.path`, so
@@ -51,6 +58,41 @@ strict enough to have no `'unsafe-inline'` — so **no inline `<script>`, no
 the frontend without also widening the policy. `test/headers.test.ts` fails if
 the policy is weakened, and fails the other way too if `index.html` gains an
 origin the policy doesn't allow.
+
+### Portability (Stage 2)
+
+The app is no longer Netlify-shaped. Handlers are plain
+`(Request) => Promise<Response>` in `lib/handlers/`; `netlify/functions/*.mts`
+are adapters that add nothing but `config.path`. A second host needs its own
+adapter directory and no changes to anything else.
+
+**`lib/db/sql.ts` is the seam, and the branch order is deliberate:**
+
+| Condition | Driver |
+|---|---|
+| `DATABASE_URL` (or `NETLIFY_DATABASE_URL`) set | `postgres.js` against that URL |
+| nothing set | `@netlify/database`, exactly as before |
+
+On Netlify today no `DATABASE_URL` is set, so the second branch runs and the
+deployed behaviour is unchanged. **That is the point** — the Netlify path
+cannot currently be tested from here (no credits, no deploy, no reachable API),
+so it was left on the driver that is known to work rather than moved onto one
+that merely ought to. `getConnectionString()` from `@netlify/database` is the
+escape hatch for collapsing the two once a real deploy confirms postgres.js
+works there.
+
+**Drivers disagree about types, and the seam is where that gets fixed.**
+`repos.id` is a BIGINT: postgres.js returns int8 as a *string* (to avoid losing
+precision past 2^53), the Neon driver returns a number. `public/app.js`
+compares ids with `===`, so an un-normalised id breaks the dashboard on one
+host and not the other. `normalise()` in `lib/db.ts` coerces it. Any new
+BIGINT or NUMERIC column needs the same treatment — this is the trap to watch
+when adding one.
+
+**Imports inside `lib/` carry explicit `.ts` extensions.** That is the only
+specifier Node's type stripping resolves, and it is what lets `test/e2e.test.ts`
+import the real handlers and run them. esbuild (which bundles the Netlify
+functions) resolves the literal path, so both paths work from the same source.
 
 ### Data model
 
@@ -225,6 +267,20 @@ netlify link           # one-time, links to the trackerator site
 netlify dev            # runs functions + frontend, provisions a branch DB
 ```
 
+**Without Netlify** (which is the situation while credits are out) the app runs
+against any Postgres:
+
+```bash
+docker run -d --name tpg -e POSTGRES_PASSWORD=x -p 5432:5432 postgres:16
+export DATABASE_URL=postgres://postgres:x@127.0.0.1:5432/postgres
+npm run migrate        # applies netlify/database/migrations/ anywhere
+npm run test:e2e       # real handlers, real Postgres, real HTTP
+```
+
+`npm run test:e2e` is the closest thing to proof the API works. `npm test`
+skips it with a visible `# SKIP DATABASE_URL not set` when there is no
+database, so the default suite stays green without one.
+
 ## Workflow conventions
 
 - Development branch: `claude/personal-repo-tracker-z8zxi3`.
@@ -239,6 +295,10 @@ netlify dev            # runs functions + frontend, provisions a branch DB
     that is the only specifier Node's type stripping resolves. `lib/` and
     `netlify/functions/` keep their extensionless imports, which is why the
     pure logic lives in modules with no relative imports of their own.
+  - `npm run test:e2e` runs the real handlers against a real Postgres (needs
+    `DATABASE_URL`). It is the only test that exercises the API rather than the
+    pure logic behind it, and it exists because the handlers stopped being
+    Netlify-shaped — it imports nothing from `netlify/`.
   - For frontend changes, serve `public/` against a stub API and drive it with
     Playwright — that is how the archived toggle, the sync error handling, and
     the S3/S4 XSS fixes were verified. **Check the harness fails against the
