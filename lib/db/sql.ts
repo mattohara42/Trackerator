@@ -24,7 +24,7 @@
  * there, keeping the proven path is the honest choice rather than the tidy one.
  */
 
-import { createRequire } from "node:module";
+import { getDatabase } from "@netlify/database";
 import postgres from "postgres";
 import { env } from "../env.ts";
 
@@ -73,14 +73,20 @@ export function getSql(): Sql {
     return cached;
   }
 
-  // No connection string: assume Netlify's attached database. Required lazily
-  // rather than imported at the top so a non-Netlify deploy never needs the
-  // package present at all — a static import would fail the build without it,
-  // which would undo the point of this file.
-  const { getDatabase } = createRequire(import.meta.url)("@netlify/database") as {
-    getDatabase: () => { sql: Sql };
-  };
-  cached = getDatabase().sql;
+  // No connection string: assume Netlify's attached database.
+  //
+  // This import is static, and must stay static. It was briefly a lazy
+  // `createRequire(...)` on the theory that a non-Netlify host should not need
+  // the package present — which broke production: esbuild, which bundles the
+  // Netlify functions, does not trace `createRequire` calls, so the module was
+  // never included and every request died with "Cannot find module
+  // '@netlify/database'" at runtime.
+  //
+  // The theory was wrong anyway. The package is a declared dependency, so it is
+  // installed everywhere `npm ci` runs, and importing it is side-effect-free —
+  // only `getDatabase()` touches a connection, and that is behind the branch
+  // above. Nothing is saved by hiding it from the bundler.
+  cached = getDatabase().sql as unknown as Sql;
   return cached;
 }
 
