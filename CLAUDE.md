@@ -38,13 +38,19 @@ lib/                        shared logic used by the functions
   notes.ts                    note sanitising + CLAUDE.md content building
   status.ts                   the canonical status vocabulary + validator
   http.ts                     json/error responses, repo-id parsing
+  headers.ts                  reads the security headers back out of netlify.toml
 test/                       node:test suites (`npm test`), no build step
 netlify/database/migrations/  SQL migrations, applied automatically on deploy
 ```
 
 Routes are declared **in-code** via each function's exported `config.path`, so
 the frontend calls clean `/api/*` paths with no redirect rules in
-`netlify.toml`.
+`netlify.toml`. That file does carry the **security headers**, including a CSP
+strict enough to have no `'unsafe-inline'` — so **no inline `<script>`, no
+`style="..."` attribute, no `onclick=`, and no remote asset** may be added to
+the frontend without also widening the policy. `test/headers.test.ts` fails if
+the policy is weakened, and fails the other way too if `index.html` gains an
+origin the policy doesn't allow.
 
 ### Data model
 

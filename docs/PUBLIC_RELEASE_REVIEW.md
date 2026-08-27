@@ -26,10 +26,11 @@ comparison.
 
 Ordered by what they'd cost if the site were made public tomorrow.
 
-> **Stage 1 landed 2026-08-27.** S3, S4, S9, S11 and S13 are fixed, with tests;
-> S14 is partly done (LICENSE, SECURITY.md, CI, `strict`). Their sections are
-> kept rather than deleted, because the reasoning is what stops each one being
-> reintroduced. Everything else below is still open.
+> **Stage 1 landed 2026-08-27** (#21), **S8 followed**. Fixed: S3, S4, S8, S9,
+> S11, S13, with tests; S14 is partly done (LICENSE, SECURITY.md, CI,
+> `strict`). Their sections are kept rather than deleted, because the reasoning
+> is what stops each one being reintroduced. Everything else below is still
+> open.
 
 ### S1 · Critical · There is no authentication in the application
 
@@ -153,7 +154,7 @@ advice precisely because it is a full database dump.
 principle matters more than the bytes: the day a bug exposes this endpoint, what
 leaks should be as small as possible.
 
-### S8 · Medium · No security headers
+### S8 · ~~Medium~~ FIXED · No security headers
 
 `netlify.toml` — three lines, no `[[headers]]` block
 
@@ -166,6 +167,23 @@ Clickjacking a page with a "SEND TO CLAUDE" button is not a theoretical concern.
 **Fix:** a headers block in `netlify.toml`. The one wrinkle is that `index.html`
 pulls fonts from Google, so `style-src`/`font-src` need those origins — or
 self-host the two fonts and keep the policy tight.
+
+**What landed.** A `[[headers]]` block with CSP, `X-Frame-Options`,
+`X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` and HSTS. The
+CSP came out stricter than expected because the frontend turned out to have no
+inline script, no inline style attribute, no event-handler attribute and no
+image anywhere — so it needs **neither `'unsafe-inline'` nor `'unsafe-eval'`**,
+which is the difference between a policy that stops an injected script and one
+that only looks like it does. Google Fonts is the single external dependency and
+gets exactly two origins, in exactly two directives.
+
+Headers are configuration, so nothing in the app would notice one being dropped
+or weakened. `test/headers.test.ts` parses `netlify.toml` back out and asserts
+the policy is still the policy — including a check in the other direction, that
+every origin `index.html` references is actually allowed, which catches a new
+remote dependency being added without a matching source. Verified in Chromium
+against the real headers: no violations, and a deliberately broken policy fails
+both the unit tests and the browser run.
 
 ### S9 · ~~Medium~~ FIXED · Note content is injected into an agent instruction file unchecked
 
