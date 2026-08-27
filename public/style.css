@@ -1,21 +1,31 @@
 :root {
   color-scheme: dark;
-  --bg: #14150f;
-  --bg-grain: rgba(255, 255, 255, 0.02);
-  --panel: #1e2016;
-  --panel-raised: #262819;
-  --metal: #3d3f2c;
-  --metal-light: #56583d;
-  --text: #e4e0c8;
-  --muted: #8d8c74;
-  --accent: #e8a33d;
-  --accent-dim: #7a5b26;
 
-  --led-green: #4fd07a;
-  --led-red: #f0503f;
-  --led-amber: #f0b429;
-  --led-blue: #55c1d6;
-  --led-off: #4a4b3d;
+  /* Chassis: the dark metal the panels are screwed onto. */
+  --bg: #232629;
+  --bg-grain: rgba(255, 255, 255, 0.03);
+  --panel: #2e3237;
+  --panel-raised: #3a3f45;
+  --metal: #5c636a;
+  --metal-light: #8d959d;
+  --text: #f4f2e9;
+  --muted: #a9b1b8;
+  --accent: #ff9d33;
+  --accent-dim: #b4661a;
+
+  /* The four painted zones of the front panel, top to bottom. Each card
+     section borrows one, so a card reads like a strip of the instrument
+     rather than a stack of identical grey boxes. */
+  --panel-violet: #b9a7dd;
+  --panel-cyan: #7fd0d8;
+  --panel-green: #93cc4a;
+  --panel-yellow: #f2e34a;
+
+  --led-green: #5fe08c;
+  --led-red: #ff5c46;
+  --led-amber: #ffc63f;
+  --led-blue: #63d2ea;
+  --led-off: #5c636a;
 }
 
 * {
@@ -46,13 +56,30 @@ body {
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
-  padding: 1rem 1.5rem;
+  padding: 1rem 1.5rem calc(1rem + 5px);
   background: linear-gradient(180deg, var(--panel-raised), var(--panel));
-  border-bottom: 3px solid var(--metal);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  border-bottom: 1px solid var(--metal);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
   position: sticky;
   top: 0;
   z-index: 10;
+}
+
+/* The instrument's four panel colours, banded along the bottom edge. */
+.topbar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 5px;
+  background: linear-gradient(
+    90deg,
+    var(--panel-violet) 0 25%,
+    var(--panel-cyan) 25% 50%,
+    var(--panel-green) 50% 75%,
+    var(--panel-yellow) 75% 100%
+  );
 }
 
 .plate-title {
@@ -67,7 +94,7 @@ body {
   letter-spacing: 0.08em;
   margin: 0;
   color: var(--accent);
-  text-shadow: 0 0 8px var(--accent-dim);
+  text-shadow: 0 0 14px rgba(255, 157, 51, 0.45);
 }
 
 .subtitle {
@@ -189,8 +216,9 @@ body {
 .card.needs-attention {
   border-color: var(--led-red);
   box-shadow:
-    0 3px 10px rgba(0, 0, 0, 0.35),
-    0 0 0 1px rgba(240, 80, 63, 0.25);
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 3px 10px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 92, 70, 0.3);
 }
 
 .attention-flag {
@@ -258,6 +286,23 @@ textarea:focus {
   cursor: default;
 }
 
+/* The one button that does something to the outside world gets the orange
+   cap, same as the instrument. */
+#syncBtn {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+#syncBtn:hover:not(:disabled) {
+  background: linear-gradient(180deg, var(--accent), #e2801a);
+  border-color: var(--accent);
+  color: #24170a;
+}
+
+#syncBtn:hover:not(:disabled) .btn-led {
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
+}
+
 .btn-led {
   width: 8px;
   height: 8px;
@@ -299,7 +344,9 @@ textarea:focus {
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 3px 10px rgba(0, 0, 0, 0.4);
 }
 
 .card::before,
@@ -480,12 +527,12 @@ textarea:focus {
 }
 
 .category {
-  font-size: 0.6rem;
+  font-size: 0.62rem;
   letter-spacing: 0.12em;
   padding: 0.1rem 0.4rem;
-  border: 1px solid var(--accent-dim);
+  border: 1px solid var(--panel-violet);
   border-radius: 2px;
-  color: var(--accent);
+  color: var(--panel-violet);
   white-space: nowrap;
 }
 
@@ -519,41 +566,70 @@ textarea:focus {
   flex: none;
 }
 
+/* Each section is painted like one zone of the front panel. --zone is what
+   the summary text and its caret pick up. */
 .section {
+  --zone: var(--muted);
   border-top: 1px solid var(--metal);
-  padding-top: 0.45rem;
+  padding-top: 0.35rem;
 }
+
+.section.zone-cyan { --zone: var(--panel-cyan); }
+.section.zone-green { --zone: var(--panel-green); }
+.section.zone-violet { --zone: var(--panel-violet); }
 
 .section > summary {
   cursor: pointer;
-  font-size: 0.66rem;
-  letter-spacing: 0.14em;
-  color: var(--muted);
-  list-style: none;
   display: flex;
-  justify-content: space-between;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 0.55rem;
+  /* Negative side margin so the hover fill runs to the card's inner edge
+     while the row itself stays a generous target to click. */
+  margin: 0 -0.45rem;
+  padding: 0.45rem;
+  border-radius: 3px;
+  color: var(--zone);
+  list-style: none;
+  transition: background 0.15s ease;
 }
 
 .section > summary::-webkit-details-marker {
   display: none;
 }
 
+/* Big enough to hit without aiming for it. The variation selector keeps the
+   glyph as text — bare U+25B6 renders as a colour emoji on some platforms. */
 .section > summary::before {
-  content: "▸ ";
-  color: var(--accent);
+  content: "\25B6\FE0E";
+  flex: none;
+  font-size: 1.15rem;
+  line-height: 0.85;
+  color: var(--zone);
+  transition: transform 0.18s ease;
 }
 
 .section[open] > summary::before {
-  content: "▾ ";
+  transform: rotate(90deg);
 }
 
 .section > summary:hover {
-  color: var(--accent);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.section > summary:focus-visible {
+  outline: 2px solid var(--zone);
+  outline-offset: 1px;
+}
+
+.summary-title {
+  font-size: 0.74rem;
+  letter-spacing: 0.16em;
+  margin-right: auto;
 }
 
 .summary-hint {
-  color: var(--metal-light);
+  color: var(--muted);
+  font-size: 0.68rem;
   letter-spacing: 0.06em;
 }
 
