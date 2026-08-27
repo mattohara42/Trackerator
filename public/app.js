@@ -1,3 +1,5 @@
+import { escapeHtml, safeHref } from "./safe.js";
+
 const grid = document.getElementById("grid");
 const emptyState = document.getElementById("emptyState");
 const syncBtn = document.getElementById("syncBtn");
@@ -251,12 +253,6 @@ function renderPick(inScope) {
   });
 }
 
-function escapeHtml(str) {
-  return (str ?? "").replace(/[&<>"']/g, (c) => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-  }[c]));
-}
-
 function renderCard(repo) {
   const stale = stalenessOf(repo);
   const flagged = needsAttention(repo);
@@ -265,7 +261,11 @@ function renderCard(repo) {
   const topics = topicsOf(repo);
   const work = openWorkOf(repo);
   const filledNotes = [repo.progress_note, repo.goals, repo.next_steps].filter((v) => (v || "").trim()).length;
-  const noteSummary = `${repo.status.toUpperCase()}${filledNotes ? ` · ${filledNotes}/3 filled` : ""}`;
+  // Escaped, not trusted: `status` is whatever the API stored, and this string
+  // goes into innerHTML below.
+  const noteSummary = escapeHtml(
+    `${repo.status.toUpperCase()}${filledNotes ? ` · ${filledNotes}/3 filled` : ""}`
+  );
 
   const el = document.createElement("article");
   el.className = `card tier-${stale.key}${flagged ? " needs-attention" : ""}`;
@@ -273,7 +273,7 @@ function renderCard(repo) {
 
   el.innerHTML = `
     <div class="card-header">
-      <a href="${repo.html_url}" target="_blank" rel="noopener">${escapeHtml(repo.name)}</a>
+      <a href="${safeHref(repo.html_url)}" target="_blank" rel="noopener">${escapeHtml(repo.name)}</a>
       <span class="header-meta">
         ${category ? `<span class="category">${category}</span>` : ""}
         <span class="staleness"><span class="led ${stale.led}"></span>${stale.label}</span>
@@ -311,7 +311,7 @@ function renderCard(repo) {
         ${work.issues
           .map(
             (i) =>
-              `<li><a href="${escapeHtml(i.url)}" target="_blank" rel="noopener"><span class="issue-num">#${escapeHtml(
+              `<li><a href="${safeHref(i.url)}" target="_blank" rel="noopener"><span class="issue-num">#${escapeHtml(
                 String(i.number)
               )}</span>${escapeHtml(i.title)}</a></li>`
           )
@@ -386,8 +386,8 @@ function renderCard(repo) {
     </details>
 
     <div class="card-links">
-      <a href="${repo.html_url}" target="_blank" rel="noopener">GitHub ↗</a>
-      ${repo.homepage ? `<a href="${escapeHtml(repo.homepage)}" target="_blank" rel="noopener">Live site ↗</a>` : ""}
+      <a href="${safeHref(repo.html_url)}" target="_blank" rel="noopener">GitHub ↗</a>
+      ${repo.homepage ? `<a href="${safeHref(repo.homepage)}" target="_blank" rel="noopener">Live site ↗</a>` : ""}
     </div>
   `;
 

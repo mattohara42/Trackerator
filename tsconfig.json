@@ -5,11 +5,13 @@
     "moduleResolution": "Bundler",
     "lib": ["ES2022", "DOM"],
     "types": ["node"],
-    "strict": false,
     "noEmit": true,
     "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "allowJs": true,
+    "strict": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["lib/**/*.ts", "netlify/functions/**/*.mts"]
+  "include": ["lib/**/*.ts", "netlify/functions/**/*.mts", "test/**/*.ts", "public/safe.js"]
 }
