@@ -1,3 +1,53 @@
 [build]
   publish = "public"
   functions = "netlify/functions"
+
+# Security headers.
+#
+# The app renders GitHub-sourced content through innerHTML in a dozen places
+# and carries buttons that commit to your repositories, so these are the two
+# things a CSP and a frame-ancestors rule are respectively for. They are
+# defence in depth, not the fix: the escaping in public/safe.js is the fix.
+#
+# The policy is strict because the code earns it — there is no inline script,
+# no inline style attribute, no event-handler attribute and no image in the
+# whole frontend, so nothing here needs 'unsafe-inline' or 'unsafe-eval'.
+# Keep it that way: if a change seems to need either, the change is wrong.
+# `test/headers.test.ts` fails if one is reintroduced.
+#
+# The one external dependency is Google Fonts, which needs two origins: the
+# stylesheet from fonts.googleapis.com and the font files it then pulls from
+# fonts.gstatic.com. Self-hosting the two faces would let both come out.
+[[headers]]
+  for = "/*"
+
+  [headers.values]
+    Content-Security-Policy = """
+      default-src 'self'; \
+      script-src 'self'; \
+      style-src 'self' https://fonts.googleapis.com; \
+      font-src 'self' https://fonts.gstatic.com; \
+      img-src 'self'; \
+      connect-src 'self'; \
+      form-action 'none'; \
+      frame-ancestors 'none'; \
+      base-uri 'none'; \
+      object-src 'none'"""
+
+    # frame-ancestors above supersedes this for modern browsers; kept for the
+    # ones that only understand the legacy header.
+    X-Frame-Options = "DENY"
+
+    X-Content-Type-Options = "nosniff"
+
+    # Private repo names live in this app's URLs and content. Send the origin
+    # to other sites, never the path.
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+    # None of these are used, and a dashboard has no business asking.
+    Permissions-Policy = "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
+
+    # Netlify already serves HTTPS only and redirects HTTP, so this mainly
+    # removes the first-request window. No `preload` — that is a one-way door
+    # and this is not a domain worth committing to a browser preload list.
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"
