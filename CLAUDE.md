@@ -255,4 +255,7 @@ pushed yesterday) render nearly identically.
 
 Remaining observations, not an agreed roadmap, are listed in `HANDOFF.md`
 under "What to do next". Confirm with Matt before building beyond staleness.
+
+## Notes from Trackerator
+
 - 2026-08-27: /repo-metadata
