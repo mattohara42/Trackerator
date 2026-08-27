@@ -16,6 +16,18 @@ const SORT_PREF_KEY = "trackerator.sortBy";
 let repos = [];
 const saveTimers = new Map();
 
+// The site sits behind Netlify team SSO. When that session expires the edge
+// answers API calls with a 401 and an HTML login-redirect page, without ever
+// reaching the function — so this is never an application error, and there is
+// no point showing anyone the redirect markup. Every fetch path checks for it,
+// because the failure is invisible otherwise: a save just stops saving.
+function isAuthFailure(res) {
+  return res.status === 401 || res.status === 403;
+}
+
+const AUTH_MESSAGE =
+  "Your Netlify login has expired. Reload the page, sign in again, then try that again.";
+
 function relativeTime(iso) {
   if (!iso) return "no commits yet";
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -429,9 +441,20 @@ async function sendNote(id, cardEl) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ note }),
     });
-    const data = await res.json();
-    if (!res.ok) {
-      alert(`Send failed: ${data.error || res.statusText}`);
+    if (isAuthFailure(res)) {
+      alert(AUTH_MESSAGE);
+      return;
+    }
+
+    const body = await res.text();
+    let data = null;
+    try {
+      data = JSON.parse(body);
+    } catch {
+      // A crash or timeout returns HTML; handled below rather than thrown.
+    }
+    if (!res.ok || !data) {
+      alert(`Send failed: ${data?.error || body.slice(0, 200) || res.statusText}`);
       return;
     }
 
@@ -466,6 +489,11 @@ async function saveRepo(id, cardEl) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(fields),
   });
+
+  if (isAuthFailure(res)) {
+    alert(AUTH_MESSAGE);
+    return;
+  }
 
   if (res.ok) {
     const updated = await res.json();
@@ -557,10 +585,31 @@ function render() {
   syncedAtEl.textContent = latestSync ? `Last synced ${relativeTime(latestSync)}` : "";
 }
 
+function showLoadError(message) {
+  emptyState.hidden = false;
+  emptyState.textContent = message;
+}
+
 async function loadRepos() {
-  const res = await fetch("/api/repos");
-  repos = await res.json();
-  render();
+  try {
+    const res = await fetch("/api/repos");
+    if (isAuthFailure(res)) return showLoadError(AUTH_MESSAGE);
+
+    const body = await res.text();
+    if (!res.ok) {
+      return showLoadError(`Couldn't load repos (HTTP ${res.status}). ${body.slice(0, 200)}`);
+    }
+    try {
+      repos = JSON.parse(body);
+    } catch {
+      return showLoadError(
+        `Couldn't load repos: the response wasn't JSON (HTTP ${res.status}).`
+      );
+    }
+    render();
+  } catch (err) {
+    showLoadError(`Couldn't load repos: ${err.message}`);
+  }
 }
 
 async function runSync() {
@@ -581,6 +630,10 @@ async function runSync() {
       // Left null — handled below.
     }
 
+    if (isAuthFailure(res)) {
+      alert(AUTH_MESSAGE);
+      return;
+    }
     if (!res.ok) {
       const detail = data?.error || body.slice(0, 300) || res.statusText;
       alert(`Sync failed (HTTP ${res.status}): ${detail}`);

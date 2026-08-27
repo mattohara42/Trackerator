@@ -165,6 +165,19 @@ Locally, both come from `.env` (gitignored) and `netlify dev` loads them.
 
 ### Access
 
+6. **An expired SSO session looks like an application bug.** When the Netlify
+   team login lapses, the edge answers `/api/*` with **HTTP 401 and an HTML
+   login-redirect page** (`<title>Login Redirect</title>`, pointing at
+   `app.netlify.com/edge-access`) without the request ever reaching the
+   function. So a 401 whose body is HTML is never the GitHub token, the
+   database or the sync logic — it is the session, and the fix is to reload
+   and sign in again. Every fetch path in `app.js` checks `isAuthFailure`
+   first for this reason; before that, a lapsed session dumped raw redirect
+   markup into an `alert()` on sync, rendered a blank dashboard on load, and
+   dropped note saves silently.
+
+### Access
+
 The live site requires **Netlify team SSO login** (`requiresSSOTeamLogin`).
 This matters: the app holds a GitHub token with repo **write** access, so the
 site must never be left publicly reachable. Note the setting reported scope
