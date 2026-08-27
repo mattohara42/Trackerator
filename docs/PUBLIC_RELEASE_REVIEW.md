@@ -382,10 +382,68 @@ adapters/
   vercel/ node/      the same handlers, other conventions
 ```
 
+#### 3c.1 Can Vercel host Trackerator? Yes — with one significant catch
+
+Checked against Vercel's current documentation rather than from memory, because
+the plan tiers are what decide the answer.
+
+**What ports cleanly:**
+
+| Piece | On Vercel |
+|---|---|
+| Static frontend | `public/` as the output directory. Nothing to change. |
+| The four handlers | Vercel's Node.js runtime supports **standard Web `Request`/`Response`**, so the handler bodies port essentially untouched — the same property that makes seam 1 above cheap. |
+| Routing | File-system based: `api/repos.ts`, `api/repos/[id].ts`, `api/repos/[id]/send-to-claude.ts`. Replaces the `config.path` exports; a mechanical move, not a rewrite. |
+| Postgres | **Netlify DB is Neon underneath.** You can *claim* the anonymous Neon database into a free Neon account, at which point the same database serves Vercel over `DATABASE_URL`. **No data migration, and no second database.** |
+| Deploy previews | Both have them, per-PR. Vercel's preview protection is free on Hobby. |
+| Function duration | Hobby now allows up to **60s** (raised from 10s), Pro up to 5 minutes. That is *better* than Netlify's 10s synchronous ceiling — S12's sync timeout is less pressing on Vercel. |
+
+**The catch, and it is a real one:** on Vercel's **Hobby** plan, Vercel
+Authentication protects preview deployments and deployment URLs, but **the
+production domain stays publicly accessible**. Gating a production domain
+requires **Pro**. (Password Protection is Enterprise, or a $150/month Pro
+add-on; Trusted IPs are Enterprise only.)
+
+That matters more for Trackerator than it would for almost any other app,
+because — per S1 — **the host's gate is the entire security model**. Deploying
+today's code to Vercel Hobby would put an unauthenticated
+`POST /api/repos/:id/send-to-claude` on the public internet, which is precisely
+the arbitrary-commit primitive S1 describes. So:
+
+- **Vercel Pro ($20/mo):** a genuine like-for-like swap for the current setup.
+- **Vercel Hobby:** only safe *after* Stage 1 and app-level authentication
+  exist. Not before.
+
+**The wider point this exposes.** Depending on a host's SSO for access control
+is itself the portability blocker. Every target has to reimplement that gate,
+and they don't all offer it free — Vercel doesn't. Give Trackerator its own
+authentication and it becomes deployable anywhere, a $5 VPS included, with no
+plan tier deciding whether it is safe. **"Make it portable" and "give it auth"
+turn out to be the same project**, which is another reason to sequence Stage 1
+first.
+
+**Two smaller differences:**
+
+- **Migrations.** Vercel has no equivalent of Netlify's auto-applying
+  `netlify/database/migrations/`; you would run them from the build command.
+  Seam 3's portable runner covers this — and it is the seam that stops being
+  optional the moment a second target exists.
+- **Local dev.** `netlify dev` provisions a branch database on the fly.
+  `vercel dev` does not; you would point at a Neon branch yourself. Slightly
+  more setup, but it also removes the dependency on one vendor's CLI for
+  local work.
+
+**Recommendation:** support both, and treat neither as the default. Once seams
+1–4 are done, "which host" is a directory of adapters and a README section
+rather than a fork in the codebase — and *that* is the deliverable, more than
+Vercel specifically. Being able to add a third target cheaply is what proves
+the decoupling actually worked.
+
 ### 3d. The extensibility question: signals, not columns
 
-"Track more than just Netlify" is the same problem as "fits other people's
-setups", and it has one root cause. Every fact the app knows is a **column** —
+"Track more than just Netlify" — confirmed to mean deployment status specifically
+— is the same problem as "fits other people's setups", and it has one root
+cause. Every fact the app knows is a **column** —
 `has_ci`, `latest_release_tag`, `open_prs`, `ci_status`. Adding a Netlify deploy
 status means a migration, a new field on two interfaces, a fetch in `syncRepos`,
 and hand-written markup in `renderCard`. Adding Vercel means doing all of it
@@ -423,6 +481,49 @@ and register providers in a map. Then:
 - GitHub itself becomes the first provider rather than a special case, which is
   what proves the interface is honest.
 
+**What the deploy provider actually looks like.** Since this is the confirmed
+primary ask, it's worth being concrete about the part that is easy to hand-wave.
+Both hosts expose the same shape of fact, which is exactly why it generalises:
+
+```ts
+// providers/netlify.ts — and vercel.ts is the same file with a different fetch
+export const netlify: SignalProvider = {
+  id: "netlify",
+  label: "Netlify",
+  configSchema: [
+    { key: "token",   type: "secret", label: "Personal access token" },
+    { key: "siteId",  type: "string", label: "Site ID", perRepo: true },
+  ],
+  async fetchSignals(repo, cfg) {
+    const d = await latestDeploy(cfg);           // one API call
+    return [{
+      key:   "deploy.state",
+      label: "Last deploy",
+      value: d.state,                            // "ready" | "building" | "error"
+      state: d.state === "ready"  ? "ok"
+           : d.state === "error"  ? "bad"
+           : d.state === "building" ? "warn" : "unknown",
+      url:   d.adminUrl,
+      at:    d.publishedAt,
+    }];
+  },
+};
+```
+
+Three things to settle when this gets built, none of them blocking:
+
+1. **Linking a repo to a site.** Neither host keys deploys by GitHub repo id, so
+   something has to hold the mapping. Both APIs expose the connected repository
+   on the site/project record, so the provider can **offer a match and let the
+   user confirm** rather than asking anyone to paste site ids by hand.
+2. **Credentials are per-provider, not global.** `configSchema` exists so each
+   provider declares what it needs and the app stores it the same way for all of
+   them — which is also the seam where per-provider secrets get encrypted once,
+   rather than per integration.
+3. **A missing provider is not an error.** Most repos aren't deployed anywhere.
+   Absent signals should render as nothing at all, not as a failed check — the
+   completeness meter's existing behaviour is the wrong model here.
+
 Two more registries follow the same shape and pick up most of Part 2:
 
 **Rules over signals.** Completeness checks, staleness tiers, the attention
@@ -452,17 +553,22 @@ running typecheck and tests, and turn on `strict`.
 
 **Stage 2 — decouple.** The `env()` helper, the database interface, the portable
 migration runner, handlers moved out of `netlify/`. No behaviour change; the app
-becomes deployable somewhere other than Netlify. Ship self-hosting: a README that
-covers Netlify, Vercel and a container, with an explicit warning never to expose
-an instance publicly without auth.
+becomes deployable somewhere other than Netlify. **Vercel is the target that
+proves it** (§3c.1) — a second adapter is the only real test that the seams are
+real. Ship self-hosting: a README covering Netlify, Vercel and a container, with
+an explicit warning never to expose an instance publicly without auth, and the
+Vercel-Hobby caveat called out by name.
 
 **Stage 3 — make it configurable.** The signals model and the rules registry.
 Settings move out of `const`s and into per-account configuration. Cards render
 generically. This is where it stops being Matt's dashboard.
 
-**Stage 4 — providers.** GitHub becomes the first `SignalProvider`; Netlify
-becomes the second, and proves the interface. After that each new integration is
-a file and a pull request, which is what makes the project worth contributing to.
+**Stage 4 — providers.** GitHub becomes the first `SignalProvider`. **Deploy
+status is the confirmed primary ask**, so it is next: Netlify and Vercel built
+together rather than Netlify first, because two implementations at once is what
+stops the interface quietly ossifying around whichever one was written first.
+After that each new integration — Fly, Render, Cloudflare, Sentry — is a file and
+a pull request, which is what makes the project worth contributing to.
 
 **Stage 5 — hosted, only if wanted.** GitHub App, sessions, tenancy, background
 sync, rate limiting, security headers, S1/S2/S5/S6/S7/S10 closed out properly.
@@ -470,11 +576,19 @@ Don't start this until something in stages 1–4 has attracted actual users.
 
 ---
 
-## Open question
+## Scope decision (2026-08-27)
 
-"Track more extensions than just Netlify" reads two ways, and this document
-deliberately covers both: **3c** (run Trackerator somewhere other than Netlify)
-and **3d** (pull status *from* Netlify and other hosts into the cards). They turn
-out to be the same architectural move — put an interface between the core and the
-vendor — so neither reading is wasted work. Worth confirming which one was meant
-before Stage 2 or Stage 4 gets prioritised over the other.
+The ambiguity this document was originally hedging on is settled. Matt: *"I
+meant making deployment status not be netlify-specific, but I do like the idea
+of the app itself not being tied to just netlify."*
+
+So both readings are in scope, with a priority between them:
+
+- **Primary — §3d.** Deployment status becomes a signal from a provider, so
+  Netlify is one integration among several rather than a special case.
+- **Also wanted — §3c.** Trackerator itself becomes deployable somewhere other
+  than Netlify, with **Vercel as the first alternative target** (§3c.1).
+
+They remain the same architectural move from two directions: put an interface
+between the core and the vendor. Nothing in the staged plan changes; §3d moves
+ahead of §3c in priority within Stage 3/4.
