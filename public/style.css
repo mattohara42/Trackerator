@@ -8,6 +8,12 @@
   --bg-grain: rgba(255, 110, 235, 0.04);
   --panel: #241a4a;
   --panel-raised: #30245f;
+  /* Translucent twins of the two panel colours. The artwork sits behind the
+     whole app, and these are what let it through. Tuned so text keeps its
+     contrast: the backdrop is already darkened and blurred in the asset
+     itself, and the body scrim adds another layer on top of that. */
+  --panel-a: rgba(36, 26, 74, 0.74);
+  --panel-raised-a: rgba(48, 36, 95, 0.80);
   --metal: #4d3d85;
   --metal-light: #8574c4;
   --text: #f6ecff;
@@ -45,6 +51,11 @@ body {
   min-height: 100vh;
   font-family: "Share Tech Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   color: var(--text);
+  /* Layered front to back: scanline grain, the pink horizon glow, a scrim, the
+     artwork, then a solid floor. The scrim used to be opaque — it is now rgba,
+     which is the single change that lets the backdrop show at all. Its alpha
+     is what to adjust if the art reads too strong or too faint; everything
+     else here is unchanged. */
   background:
     repeating-linear-gradient(
       0deg,
@@ -54,8 +65,11 @@ body {
       transparent 3px
     ),
     radial-gradient(130% 55% at 50% 0%, rgba(255, 62, 200, 0.13), transparent 62%),
-    linear-gradient(180deg, var(--bg) 0%, var(--bg-deep) 100%),
+    linear-gradient(180deg, rgba(25, 16, 54, 0.88) 0%, rgba(25, 16, 54, 0.62) 45%, rgba(13, 8, 32, 0.34) 100%),
+    url("backdrop.webp") center bottom / 100% auto no-repeat,
     var(--bg-deep);
+  /* Fixed so the art behaves like a backdrop the content scrolls over, rather
+     than a very tall image that scrolls with it. */
   background-attachment: fixed;
 }
 
@@ -67,8 +81,9 @@ body {
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
-  padding: 1rem 1.5rem calc(1rem + 5px);
-  background: linear-gradient(180deg, var(--panel-raised), var(--panel));
+  padding: 0.5rem 1.5rem calc(0.5rem + 5px);
+  background: linear-gradient(180deg, var(--panel-raised-a), var(--panel-a));
+  backdrop-filter: blur(10px) saturate(1.2);
   border-bottom: 1px solid var(--metal);
   box-shadow:
     0 4px 14px rgba(0, 0, 0, 0.5),
@@ -97,28 +112,31 @@ body {
 
 .plate-title {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   line-height: 1;
+  /* The "REPO STATUS CONSOLE" strapline that used to sit under the text
+     heading is gone: beside a wordmark it is redundant, and at 190px wide it
+     pushed the controls onto a second row, which cost 55px of a topbar that is
+     sticky — permanently off the grid, on a dashboard whose whole point is
+     fitting a dozen cards on a screen. */
 }
 
 .plate-title h1 {
-  font-family: "VT323", monospace;
-  font-size: 2.4rem;
-  letter-spacing: 0.08em;
   margin: 0;
-  color: #fff2fb;
-  text-shadow:
-    0 0 3px #fff,
-    0 0 10px var(--neon),
-    0 0 26px var(--neon),
-    0 0 52px var(--neon-dim);
+  /* The heading is now a wrapper for the wordmark image; line-height 0 stops
+     the inline baseline gap from padding the topbar out. */
+  line-height: 0;
 }
 
-.subtitle {
-  font-size: 0.68rem;
-  letter-spacing: 0.25em;
-  color: var(--muted);
-  margin-top: 0.15rem;
+.plate-title .logo {
+  display: block;
+  height: auto;
+  /* Sized so the wordmark stays readable — it is a long word, and much under
+     this it turns to mush — while keeping the topbar close to its old height.
+     Scales down on narrow screens rather than pushing the controls off. */
+  width: clamp(160px, 19vw, 205px);
+  /* The art carries its own glow; this just seats it against the panel. */
+  filter: drop-shadow(0 0 14px rgba(255, 62, 200, 0.45));
 }
 
 .topbar-controls {
@@ -415,7 +433,10 @@ textarea:focus {
 .card {
   --cut: 14px;
   position: relative;
-  background: linear-gradient(160deg, var(--panel-raised), var(--panel) 60%);
+  background: linear-gradient(160deg, var(--panel-raised-a), var(--panel-a) 60%);
+  /* Frosts whatever the card is sitting over, so the art reads as depth behind
+     the panel instead of as noise showing through it. */
+  backdrop-filter: blur(12px) saturate(1.25);
   border: 2px solid var(--metal);
   clip-path: polygon(
     var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)),
