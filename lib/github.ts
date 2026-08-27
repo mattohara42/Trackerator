@@ -316,7 +316,15 @@ async function putFileContents(
 
 const NOTES_HEADING = "## Notes from Trackerator";
 
-function buildUpdatedClaudeMd(existingContent: string | null, note: string): string {
+/** True when `line` is the notes heading itself, rather than prose about it. */
+function isNotesHeading(line: string): boolean {
+  return line.trim() === NOTES_HEADING;
+}
+
+/** Markdown h1/h2, which is what ends the notes section. */
+const SECTION_BREAK = /^#{1,2} /;
+
+export function buildUpdatedClaudeMd(existingContent: string | null, note: string): string {
   const timestamp = new Date().toISOString().slice(0, 10);
   const entry = `- ${timestamp}: ${note}`;
 
@@ -324,11 +332,32 @@ function buildUpdatedClaudeMd(existingContent: string | null, note: string): str
     return `# CLAUDE.md\n\n${NOTES_HEADING}\n\n${entry}\n`;
   }
 
-  const trimmed = existingContent.trimEnd();
-  if (trimmed.includes(NOTES_HEADING)) {
-    return `${trimmed}\n${entry}\n`;
+  const lines = existingContent.trimEnd().split("\n");
+
+  // Matching the heading as a whole line matters more than it looks. A plain
+  // substring test also matches a *mention* of the heading — and Trackerator's
+  // own CLAUDE.md documents this very feature, quoting the heading mid-
+  // sentence. That made every note sent to this repo look like it belonged to
+  // an existing section, so it was appended bare to the end of the file under
+  // whatever heading happened to be last.
+  const headingAt = lines.findIndex(isNotesHeading);
+  if (headingAt === -1) {
+    return `${lines.join("\n")}\n\n${NOTES_HEADING}\n\n${entry}\n`;
   }
-  return `${trimmed}\n\n${NOTES_HEADING}\n\n${entry}\n`;
+
+  // Append within the notes section rather than at the end of the file, so a
+  // note stays under its own heading even when other sections follow it.
+  let end = lines.length;
+  for (let i = headingAt + 1; i < lines.length; i += 1) {
+    if (SECTION_BREAK.test(lines[i])) {
+      end = i;
+      break;
+    }
+  }
+  while (end > headingAt + 1 && lines[end - 1].trim() === "") end -= 1;
+
+  lines.splice(end, 0, entry);
+  return `${lines.join("\n")}\n`;
 }
 
 export async function sendNoteToClaude({

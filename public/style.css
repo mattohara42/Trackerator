@@ -1,31 +1,39 @@
 :root {
   color-scheme: dark;
 
-  /* Chassis: the dark metal the panels are screwed onto. */
-  --bg: #232629;
-  --bg-grain: rgba(255, 255, 255, 0.03);
-  --panel: #2e3237;
-  --panel-raised: #3a3f45;
-  --metal: #5c636a;
-  --metal-light: #8d959d;
-  --text: #f4f2e9;
-  --muted: #a9b1b8;
+  /* Chassis. The grey is gone: this is an indigo night, not a grey box.
+     Every neutral is tinted toward violet so nothing reads as concrete. */
+  --bg: #191036;
+  --bg-deep: #0d0820;
+  --bg-grain: rgba(255, 110, 235, 0.04);
+  --panel: #241a4a;
+  --panel-raised: #30245f;
+  --metal: #4d3d85;
+  --metal-light: #8574c4;
+  --text: #f6ecff;
+  --muted: #b0a2dc;
   --accent: #ff9d33;
   --accent-dim: #b4661a;
+
+  /* The colour the grey palette was missing. Reserved for identity and
+     hover — orange stays the "do something" colour, so the two never
+     compete for the same meaning. */
+  --neon: #ff3ec8;
+  --neon-dim: #9c1f79;
 
   /* The four painted zones of the front panel, top to bottom. Each card
      section borrows one, so a card reads like a strip of the instrument
      rather than a stack of identical grey boxes. */
-  --panel-violet: #b9a7dd;
-  --panel-cyan: #7fd0d8;
-  --panel-green: #93cc4a;
-  --panel-yellow: #f2e34a;
+  --panel-violet: #c9a4ff;
+  --panel-cyan: #6feaf0;
+  --panel-green: #a6f13f;
+  --panel-yellow: #ffe94d;
 
-  --led-green: #5fe08c;
-  --led-red: #ff5c46;
+  --led-green: #4dffa0;
+  --led-red: #ff4d6d;
   --led-amber: #ffc63f;
-  --led-blue: #63d2ea;
-  --led-off: #5c636a;
+  --led-blue: #4de3ff;
+  --led-off: #4d3d85;
 }
 
 * {
@@ -36,16 +44,19 @@ body {
   margin: 0;
   min-height: 100vh;
   font-family: "Share Tech Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-  background: var(--bg);
   color: var(--text);
-  background-image:
+  background:
     repeating-linear-gradient(
       0deg,
       var(--bg-grain) 0px,
       var(--bg-grain) 1px,
       transparent 1px,
       transparent 3px
-    );
+    ),
+    radial-gradient(130% 55% at 50% 0%, rgba(255, 62, 200, 0.13), transparent 62%),
+    linear-gradient(180deg, var(--bg) 0%, var(--bg-deep) 100%),
+    var(--bg-deep);
+  background-attachment: fixed;
 }
 
 /* ---------- Topbar ---------- */
@@ -59,7 +70,9 @@ body {
   padding: 1rem 1.5rem calc(1rem + 5px);
   background: linear-gradient(180deg, var(--panel-raised), var(--panel));
   border-bottom: 1px solid var(--metal);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+  box-shadow:
+    0 4px 14px rgba(0, 0, 0, 0.5),
+    0 1px 22px rgba(255, 62, 200, 0.18);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -93,8 +106,12 @@ body {
   font-size: 2.4rem;
   letter-spacing: 0.08em;
   margin: 0;
-  color: var(--accent);
-  text-shadow: 0 0 14px rgba(255, 157, 51, 0.45);
+  color: #fff2fb;
+  text-shadow:
+    0 0 3px #fff,
+    0 0 10px var(--neon),
+    0 0 26px var(--neon),
+    0 0 52px var(--neon-dim);
 }
 
 .subtitle {
@@ -279,9 +296,10 @@ body {
 .card.needs-attention {
   border-color: var(--led-red);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.07),
-    0 3px 10px rgba(0, 0, 0, 0.4),
-    0 0 0 1px rgba(255, 92, 70, 0.3);
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    0 3px 14px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(255, 77, 109, 0.35),
+    0 0 18px rgba(255, 77, 109, 0.22);
 }
 
 .attention-flag {
@@ -408,8 +426,8 @@ textarea:focus {
   flex-direction: column;
   gap: 0.65rem;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.07),
-    0 3px 10px rgba(0, 0, 0, 0.4);
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    0 3px 14px rgba(0, 0, 0, 0.45);
 }
 
 .card::before,
@@ -448,7 +466,8 @@ textarea:focus {
 }
 
 .card-header a:hover {
-  color: var(--accent);
+  color: var(--neon);
+  text-shadow: 0 0 10px var(--neon-dim);
 }
 
 .badges {
@@ -480,10 +499,10 @@ textarea:focus {
   background: var(--led-off);
 }
 
-.led.on-green { background: var(--led-green); box-shadow: 0 0 6px var(--led-green); }
-.led.on-red { background: var(--led-red); box-shadow: 0 0 6px var(--led-red); }
-.led.on-amber { background: var(--led-amber); box-shadow: 0 0 6px var(--led-amber); }
-.led.on-blue { background: var(--led-blue); box-shadow: 0 0 6px var(--led-blue); }
+.led.on-green { background: var(--led-green); box-shadow: 0 0 6px var(--led-green), 0 0 12px var(--led-green); }
+.led.on-red { background: var(--led-red); box-shadow: 0 0 6px var(--led-red), 0 0 12px var(--led-red); }
+.led.on-amber { background: var(--led-amber); box-shadow: 0 0 6px var(--led-amber), 0 0 12px var(--led-amber); }
+.led.on-blue { background: var(--led-blue); box-shadow: 0 0 6px var(--led-blue), 0 0 12px var(--led-blue); }
 
 .description {
   color: var(--muted);
@@ -690,7 +709,7 @@ textarea:focus {
 .meter .seg.on {
   background: var(--accent);
   border-color: var(--accent);
-  box-shadow: 0 0 4px var(--accent-dim);
+  box-shadow: 0 0 6px var(--accent), 0 0 12px var(--accent-dim);
 }
 
 .meter-score {
