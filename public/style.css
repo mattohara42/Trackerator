@@ -189,6 +189,69 @@ body {
   font-weight: 700;
 }
 
+/* ---------- The pick ---------- */
+
+/* One line answering "where should this afternoon go". Given the orange of the
+   sync button because, like it, it is a prompt to do something rather than a
+   readout. */
+.pick {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0.9rem 1.5rem 0;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--accent-dim);
+  border-left: 3px solid var(--accent);
+  border-radius: 3px;
+  background: rgba(255, 157, 51, 0.07);
+}
+
+.pick:empty {
+  display: none;
+}
+
+.pick-label {
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+  flex: none;
+}
+
+.pick-repo {
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--accent-dim);
+  text-underline-offset: 3px;
+}
+
+.pick-repo:hover {
+  color: var(--accent);
+}
+
+.pick-why {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* Brief flash so the card is findable after the pick scrolls to it. */
+.card.highlight {
+  animation: card-flash 1.6s ease-out;
+}
+
+@keyframes card-flash {
+  0%, 40% { border-color: var(--accent); }
+  100% { border-color: var(--metal); }
+}
+
 /* ---------- Staleness ---------- */
 
 .staleness {
@@ -461,9 +524,6 @@ textarea:focus {
   font-size: 0.85rem;
 }
 
-.field select {
-  align-self: flex-start;
-}
 
 .save-indicator {
   font-size: 0.68rem;
@@ -515,6 +575,81 @@ textarea:focus {
   font-size: 0.68rem;
   letter-spacing: 0.04em;
   color: var(--muted);
+}
+
+/* ---------- Status strip ---------- */
+
+/* Status is the field most worth correcting, and it used to sit in a dropdown
+   inside a collapsed section — three interactions from a standing start. On
+   the card face as a bank of lit buttons it is one. Sits between the synced
+   facts above and the notes below, which is the same seam as the sync-owned /
+   user-owned split in the schema. */
+.status-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  border-top: 1px solid var(--metal);
+  padding-top: 0.6rem;
+}
+
+.status-chip {
+  position: relative;
+  display: inline-flex;
+}
+
+.status-chip[data-status="active"] { --chip-led: var(--led-green); }
+.status-chip[data-status="paused"] { --chip-led: var(--led-amber); }
+.status-chip[data-status="idea"] { --chip-led: var(--led-blue); }
+.status-chip[data-status="done"] { --chip-led: var(--panel-cyan); }
+.status-chip[data-status="archived"] { --chip-led: var(--metal-light); }
+
+/* Kept in the tab order and focusable — the chip face is just its skin. */
+.status-chip input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+}
+
+.chip-face {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.45rem;
+  border: 1px solid var(--metal);
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--muted);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.chip-face .led {
+  background: var(--led-off);
+}
+
+.status-chip:hover .chip-face {
+  color: var(--text);
+  border-color: var(--metal-light);
+}
+
+.status-chip input:checked + .chip-face {
+  color: var(--text);
+  border-color: var(--chip-led);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.status-chip input:checked + .chip-face .led {
+  background: var(--chip-led);
+  box-shadow: 0 0 6px var(--chip-led);
+}
+
+.status-chip input:focus-visible + .chip-face {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 /* ---------- Compact card: header meta, meter, sections ---------- */
@@ -577,6 +712,7 @@ textarea:focus {
 .section.zone-cyan { --zone: var(--panel-cyan); }
 .section.zone-green { --zone: var(--panel-green); }
 .section.zone-violet { --zone: var(--panel-violet); }
+.section.zone-yellow { --zone: var(--panel-yellow); }
 
 .section > summary {
   cursor: pointer;
@@ -659,6 +795,49 @@ textarea:focus {
   color: var(--metal-light);
   text-decoration: line-through;
   text-decoration-color: var(--metal);
+}
+
+/* ---------- Open work ---------- */
+
+.issue-list {
+  list-style: none;
+  margin: 0.55rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.issue-list a {
+  display: flex;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.issue-list a:hover {
+  color: var(--text);
+}
+
+.issue-num {
+  color: var(--panel-yellow);
+  flex: none;
+}
+
+.work-note {
+  font-size: 0.68rem;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+
+/* An open PR is work already started and left, which is worth a lit LED in a
+   way an issue is not. */
+.pr-note {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
 }
 
 .badge.topic {

@@ -33,6 +33,10 @@ export interface RepoRow {
   has_tests: boolean;
   latest_release_tag: string | null;
   latest_release_at: string | null;
+  open_issues: number;
+  open_prs: number;
+  oldest_pr_at: string | null;
+  top_issues: string;
 }
 
 export interface SyncedRepoInput {
@@ -60,6 +64,10 @@ export interface SyncedRepoInput {
   has_tests: boolean;
   latest_release_tag: string | null;
   latest_release_at: string | null;
+  open_issues: number;
+  open_prs: number;
+  oldest_pr_at: string | null;
+  top_issues: string;
 }
 
 export interface ManualFields {
@@ -89,13 +97,15 @@ export async function upsertRepo(r: SyncedRepoInput): Promise<void> {
       default_branch, stars, pushed_at, last_commit_sha, last_commit_message,
       last_commit_date, open_issues_count, ci_status, synced_at,
       homepage, topics, license_name, has_readme, has_ci, has_tests,
-      latest_release_tag, latest_release_at
+      latest_release_tag, latest_release_at,
+      open_issues, open_prs, oldest_pr_at, top_issues
     ) VALUES (
       ${r.id}, ${r.name}, ${r.full_name}, ${r.html_url}, ${r.description}, ${r.private}, ${r.github_archived},
       ${r.default_branch}, ${r.stars}, ${r.pushed_at}, ${r.last_commit_sha}, ${r.last_commit_message},
       ${r.last_commit_date}, ${r.open_issues_count}, ${r.ci_status}, ${r.synced_at},
       ${r.homepage}, ${r.topics}, ${r.license_name}, ${r.has_readme}, ${r.has_ci},
-      ${r.has_tests}, ${r.latest_release_tag}, ${r.latest_release_at}
+      ${r.has_tests}, ${r.latest_release_tag}, ${r.latest_release_at},
+      ${r.open_issues}, ${r.open_prs}, ${r.oldest_pr_at}, ${r.top_issues}
     )
     ON CONFLICT (id) DO UPDATE SET
       name = EXCLUDED.name,
@@ -120,7 +130,11 @@ export async function upsertRepo(r: SyncedRepoInput): Promise<void> {
       has_ci = EXCLUDED.has_ci,
       has_tests = EXCLUDED.has_tests,
       latest_release_tag = EXCLUDED.latest_release_tag,
-      latest_release_at = EXCLUDED.latest_release_at
+      latest_release_at = EXCLUDED.latest_release_at,
+      open_issues = EXCLUDED.open_issues,
+      open_prs = EXCLUDED.open_prs,
+      oldest_pr_at = EXCLUDED.oldest_pr_at,
+      top_issues = EXCLUDED.top_issues
   `;
 }
 

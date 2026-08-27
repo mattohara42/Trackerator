@@ -99,6 +99,53 @@ async function getLatestRelease(token: string, fullName: string) {
   }
 }
 
+const NO_OPEN_WORK = {
+  open_issues: 0,
+  open_prs: 0,
+  oldest_pr_at: null as string | null,
+  top_issues: "[]",
+};
+
+/**
+ * GitHub's issues endpoint returns pull requests alongside issues — a PR is an
+ * issue with a `pull_request` key — and `open_issues_count` on the repo object
+ * is the two added together. That sum can't tell you whether a repo has three
+ * things to decide or three things half-finished, so one call here separates
+ * them and keeps the titles of the liveliest issues.
+ *
+ * Capped at one page. A personal repo with more than 100 open issues is not a
+ * case this dashboard needs to count precisely.
+ */
+async function getOpenWork(token: string, fullName: string) {
+  try {
+    const items = await ghFetch(
+      `${API_BASE}/repos/${fullName}/issues?state=open&per_page=100&sort=updated&direction=desc`,
+      token
+    );
+    const issues = (items ?? []).filter((i: any) => !i.pull_request);
+    const prs = (items ?? []).filter((i: any) => i.pull_request);
+
+    return {
+      open_issues: issues.length,
+      open_prs: prs.length,
+      // ISO strings sort chronologically, so this is the PR that has been open
+      // longest — work started and dropped, which is worth surfacing.
+      oldest_pr_at: prs.length
+        ? (prs.map((p: any) => p.created_at).sort()[0] as string)
+        : null,
+      top_issues: JSON.stringify(
+        issues.slice(0, 3).map((i: any) => ({
+          number: i.number,
+          title: i.title,
+          url: i.html_url,
+        }))
+      ),
+    };
+  } catch {
+    return NO_OPEN_WORK;
+  }
+}
+
 const ROOT_README = /^readme(\.|$)/i;
 const ROOT_LICENSE = /^(licen[sc]e|copying)(\.|$)/i;
 const CI_WORKFLOW = /^\.github\/workflows\/.+\.ya?ml$/i;
@@ -119,7 +166,8 @@ function toRow(
   lastCommit: any,
   ciStatus: string,
   setup: ReturnType<typeof inspectTree>,
-  release: { tag: string | null; at: string | null }
+  release: { tag: string | null; at: string | null },
+  work: typeof NO_OPEN_WORK
 ): SyncedRepoInput {
   return {
     id: repo.id,
@@ -148,6 +196,10 @@ function toRow(
     has_tests: setup.has_tests,
     latest_release_tag: release.tag,
     latest_release_at: release.at,
+    open_issues: work.open_issues,
+    open_prs: work.open_prs,
+    oldest_pr_at: work.oldest_pr_at,
+    top_issues: work.top_issues,
   };
 }
 
@@ -177,17 +229,27 @@ export async function syncRepos({
   // it inside the limit without hammering GitHub's rate limiter.
   return mapWithConcurrency(repos, 8, async (repo) => {
     if (!repo.default_branch) {
-      return toRow(repo, { sha: null, message: null, date: null }, "unknown", NO_SETUP, NO_RELEASE);
+      return toRow(
+        repo,
+        { sha: null, message: null, date: null },
+        "unknown",
+        NO_SETUP,
+        NO_RELEASE,
+        NO_OPEN_WORK
+      );
     }
 
     const lastCommit = await getLastCommit(token, repo.full_name, repo.default_branch);
-    const [ciStatus, tree, release] = await Promise.all([
+    // Added to the existing parallel batch rather than run after it, so the
+    // extra call costs latency only if it is the slowest of the four.
+    const [ciStatus, tree, release, work] = await Promise.all([
       getCombinedStatus(token, repo.full_name, lastCommit.sha),
       getRepoTree(token, repo.full_name, repo.default_branch),
       getLatestRelease(token, repo.full_name),
+      getOpenWork(token, repo.full_name),
     ]);
 
-    return toRow(repo, lastCommit, ciStatus, inspectTree(tree), release);
+    return toRow(repo, lastCommit, ciStatus, inspectTree(tree), release, work);
   });
 }
 
