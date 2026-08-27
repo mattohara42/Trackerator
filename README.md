@@ -69,8 +69,10 @@ include ones you collaborate on.
 ## Access
 
 The live site requires a Netlify team login. That matters more than it might
-look: the app holds a token that can write to your repositories, so it should
-never be publicly reachable.
+look: **the app has no authentication of its own**, so that login is the entire
+access control model, and the token behind it can write to your repositories.
+An instance left publicly reachable lets anyone read your private repos and
+commit to them. `SECURITY.md` has the details and the per-host caveats.
 
 ## Layout
 
@@ -90,12 +92,27 @@ are no redirect rules to keep in sync.
 
 ## Working on it
 
-There's no CI, and merging to `main` goes straight to production, so check
-your work first:
+Merging to `main` goes straight to production, so check your work first:
 
 ```bash
-npm run typecheck
+npm run check     # typecheck + tests
 ```
+
+CI runs the same on every push and pull request. Tests are `node --test` over
+`test/*.test.ts` — no build step and no test framework, since Node strips the
+types itself.
 
 `CLAUDE.md` has the architecture notes and the operational traps worth knowing
 about. `HANDOFF.md` covers where things stand and what to pick up next.
+
+## Security
+
+`SECURITY.md` covers how to report an issue and how to deploy an instance
+without handing your repositories to the internet.
+`docs/PUBLIC_RELEASE_REVIEW.md` is a full review of this codebase, kept public
+on purpose: it lists what is fixed, what is still open, and what would have to
+change for anyone other than its operator to use it.
+
+## Licence
+
+MIT — see `LICENSE`.

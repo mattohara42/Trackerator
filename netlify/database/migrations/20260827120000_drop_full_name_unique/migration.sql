@@ -1,0 +1,16 @@
+-- Drop the UNIQUE constraint on repos.full_name.
+--
+-- A repo's identity is GitHub's numeric id, which is already the primary key.
+-- `full_name` is a sync-owned attribute that follows the id, so the uniqueness
+-- constraint added nothing — and it could wedge sync permanently.
+--
+-- The failure: delete `me/thing` and create a new repo with the same name. The
+-- new repo has a new id, so `upsertRepo`'s `ON CONFLICT (id)` doesn't fire; the
+-- INSERT instead collides with the *old* row's stale `full_name`, raises a
+-- unique violation, and takes the whole sync down with a 502 that no amount of
+-- retrying clears. It is order-dependent even within a single sync, since a
+-- rename is only reconciled when that repo's own row is reached.
+--
+-- Names are still effectively unique per account because GitHub enforces it;
+-- this just stops a stale row from blocking a live one.
+ALTER TABLE repos DROP CONSTRAINT IF EXISTS repos_full_name_key;

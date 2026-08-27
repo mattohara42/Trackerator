@@ -6,7 +6,9 @@
   "description": "A dashboard for tracking activity, status, goals and next steps across your own GitHub repos.",
   "scripts": {
     "dev": "netlify dev",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --test \"test/*.test.ts\"",
+    "check": "npm run typecheck && npm test"
   },
   "dependencies": {
     "@netlify/database": "^2.0.0"
