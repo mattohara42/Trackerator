@@ -3,6 +3,26 @@
 Where Trackerator stands and what to pick up next. Written for whoever opens
 this repo cold, including me in three weeks.
 
+## Branch audit — this repo is clean (2026-08-31)
+
+A cross-repo audit of unmerged branches ran across all twelve repos on
+2026-08-31. **Trackerator needs nothing.** The only branch besides `main` is
+`claude/personal-repo-tracker-z8zxi3`, the designated dev branch — fully
+contained in `main`, deliberately kept, not deleted.
+
+It is exactly the "stale branch ref" annoyance `CLAUDE.md` already documents:
+squash-merging rewrites the SHA, so the remote ref lingers and git reports
+phantom unpushed commits even when the trees are identical. Confirm with:
+
+```bash
+git diff --name-only origin/claude/personal-repo-tracker-z8zxi3 origin/main   # empty = identical
+```
+
+The permanent fix is still open and now applies across every repo, not just
+this one: enable **Settings → General → "Automatically delete head branches"**.
+The audit found ~57 stale refs across the other repos, nearly all of them
+created by exactly this mechanism.
+
 ## Right now
 
 Everything works and is deployed. Sync pulls all repos including private ones,
@@ -111,6 +131,13 @@ For frontend work, serve `public/` against a stub API and drive it with
 Playwright. The archived toggle and the sync error handling were both checked
 that way, including a simulated 504 to confirm failures surface instead of
 disappearing.
+
+> **Stale as of 2026-08-27 — deploy previews are OFF.** The paragraph below
+> describes the old behaviour and is kept only so nobody re-derives it from an
+> old PR. Netlify credits ran out: no preview is built for a PR, and merging to
+> `main` no longer publishes. See `CLAUDE.md` → "Workflow conventions". Verify
+> locally instead, and treat "it works on `main`" as untested in production
+> until a deploy actually happens.
 
 Opening a PR gets you more than that, though. Netlify builds a preview for
 every one at `deploy-preview-<number>--trackerator.netlify.app` and the bot
