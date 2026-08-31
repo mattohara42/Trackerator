@@ -414,8 +414,8 @@ is not.
 
 The live data makes the problem concrete: all repos read `active` with every
 note field empty, so the manual half of the tool is going unused. Staleness is
-the sharpest gap — `bigmachines` (last pushed 2014) and `WordsPerMinute` (last
-pushed yesterday) render nearly identically.
+the sharpest gap — `bigmachines` (last pushed 2014) and
+`hook-line-and-sentence` (last pushed yesterday) render nearly identically.
 
 Remaining observations, not an agreed roadmap, are listed in `HANDOFF.md`
 under "What to do next". Confirm with Matt before building beyond staleness.
