@@ -286,6 +286,13 @@ async function getFileContents(token: string, fullName: string, path: string, re
     throw new Error(`GitHub API ${res.status} fetching ${path}: ${body.slice(0, 200)}`);
   }
   const data = await res.json();
+  // Over 1 MB the API sends an empty `content` with `encoding: "none"`, and a
+  // directory comes back as an array. Treating either as an empty file would
+  // replace it wholesale, so refuse instead.
+  if (data.encoding !== "base64" || typeof data.content !== "string") {
+    throw new Error(`${path} in ${fullName} is not a file the GitHub API can return, `
+      + "probably because it is over 1 MB. It was left unchanged.");
+  }
   return { content: Buffer.from(data.content, "base64").toString("utf-8"), sha: data.sha as string };
 }
 

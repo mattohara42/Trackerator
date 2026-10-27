@@ -167,24 +167,21 @@ export async function updateManualFields(
   id: number,
   fields: ManualFields
 ): Promise<RepoRow | null> {
-  const current = await getRepo(id);
-  if (!current) return null;
-
-  const status = fields.status ?? current.status;
-  const progress_note = fields.progress_note ?? current.progress_note;
-  const goals = fields.goals ?? current.goals;
-  const next_steps = fields.next_steps ?? current.next_steps;
-
-  await db.sql`
+  // One statement, so a field the request didn't send keeps whatever is stored
+  // at write time. Reading the row first and writing all four back let two
+  // concurrent partial updates undo each other. `?? null` because postgres.js
+  // refuses an undefined parameter.
+  const rows = await db.sql`
     UPDATE repos SET
-      status = ${status},
-      progress_note = ${progress_note},
-      goals = ${goals},
-      next_steps = ${next_steps},
+      status = COALESCE(${fields.status ?? null}, status),
+      progress_note = COALESCE(${fields.progress_note ?? null}, progress_note),
+      goals = COALESCE(${fields.goals ?? null}, goals),
+      next_steps = COALESCE(${fields.next_steps ?? null}, next_steps),
       manual_updated_at = NOW()
     WHERE id = ${id}
+    RETURNING *
   `;
-  return getRepo(id);
+  return rows[0] ? normalise(rows[0] as RepoRow) : null;
 }
 
 export async function markNoteSent(id: number): Promise<RepoRow | null> {
