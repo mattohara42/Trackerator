@@ -279,15 +279,13 @@ automatically as part of the deploy.
    the code and the bound env var are unchanged, so the token itself has
    expired or been revoked. First seen 2026-10-27: the token was set
    2026-08-25 and stopped working about 60 days later, which matches
-   GitHub's 60-day expiry option. Fine-grained PATs expire by default, so
-   pick a long expiry and note the date here when you make a new one.
+   GitHub's 60-day expiry option. Its replacement (set 2026-10-27) has **no
+   expiry**, so a 401 from now on means revoked, not expired.
 
    Fixing it needs a **deploy**, because of gotcha 1. A new value in the
    Netlify UI does nothing until a build picks it up. Set the variable
    first, then deploy. If builds are off for lack of credits, the rotation
-   waits on them like any code change. (On 2026-10-27 a deploy preview built
-   again for PR #29, so credits look to have come back. Check before
-   assuming either way.)
+   waits on them like any code change.
 
    **The `dev` context value of a secret is returned in plaintext by the
    Netlify env API** (`manage-env-vars` with `getAllEnvVars`), while the
@@ -369,8 +367,7 @@ database, so the default suite stays green without one.
   push, open a PR, and squash-merge without pausing for approval on each one.
 - Validate before pushing with **`npm run check`** (typecheck + tests). CI runs
   the same thing on every push and PR (`.github/workflows/ci.yml`). Merging to
-  `main` does not currently publish — see the deploy note below — so CI and
-  local checks are the only signal there is.
+  `main` publishes to production, so these checks are the gate before it does.
   - `npm test` is `node --test` over `test/*.test.ts`. Node 22.18+ strips
     types natively, so there is still **no build step and no test framework**.
   - Tests import `.ts` files *with the extension* (`../lib/notes.ts`) because
@@ -385,19 +382,12 @@ database, so the default suite stays green without one.
     Playwright — that is how the archived toggle, the sync error handling, and
     the S3/S4 XSS fixes were verified. **Check the harness fails against the
     pre-fix code**; a security test that passes either way proves nothing.
-- **Deploy previews and auto-deploy are OFF (2026-08-27): the Netlify credits
-  ran out.** No preview is built for a PR and merging to `main` no longer
-  publishes. Two consequences, in opposite directions: a bad merge no longer
-  reaches production, but the live site is frozen at whatever last deployed and
-  `main` can drift ahead of it indefinitely. Do not wait for a preview bot
-  comment or point anyone at a `deploy-preview-*` URL — none is coming. Verify
-  locally instead (above), and treat "it works on `main`" as untested in
-  production until a deploy actually happens.
-
-  Previously this said Netlify built a preview for every PR and the bot
-  commented the link. That was true and is kept here only so nobody re-derives
-  it from an old PR: previews stopped because of billing, not a broken
-  integration.
+- **Deploy previews and auto-deploy are back ON (2026-10-27).** They were off
+  from 2026-08-27 because the Netlify credits ran out, and came back with the
+  credits: PR #29 got a preview, and its merge published to production
+  (`commit_ref` 6e23894, not a manual deploy). If previews stop again, suspect
+  billing before the integration. While they are off, a merge does not reach
+  production and `main` drifts ahead of the live site.
 
 ### Known annoyance: stale branch ref
 
@@ -423,11 +413,6 @@ SSO gating.
 
 ## Open items
 
-- **Rotate the GitHub PAT.** It was briefly stored as a Netlify variable *name*
-  (names are not masked the way secret values are), and tokens were pasted in
-  chat. Replace it, update the Netlify variable, then redeploy for it to bind.
-  Now urgent: the old token stopped working on 2026-10-27 (gotcha 8), so sync
-  is down until a new one is set **and** a deploy goes through.
 - Enable auto-delete of head branches (see above).
 
 ## Next up: UI work
