@@ -148,8 +148,8 @@ like with your repos in it.
 
 ## Proven working
 
-Send to Claude has now run successfully in production against the `squelch`
-repo, writing into its `CLAUDE.md`. That was the last unproven path, and it
+Send to Claude has now run successfully in production against one of Matt's
+repos, writing into its `CLAUDE.md`. That was the last unproven path, and it
 could never have worked before the token gained Contents write access.
 
 Sync, notes, staleness flags, completeness scoring and the compact cards are

@@ -222,8 +222,8 @@ notes on a routine sync would be the worst bug this app could have.
 
 ## Deployment
 
-Netlify site `trackerator`, id `86b1700d-287a-4721-945e-8dffbf4c3fbb`,
-git-linked to this repo. **Merging to `main` auto-deploys.** Migrations apply
+Netlify site `trackerator` (look its id up by name with the Netlify project
+reader), git-linked to this repo. **Merging to `main` auto-deploys.** Migrations apply
 automatically as part of the deploy.
 
 ### Operational gotchas — learned the hard way, do not re-derive
@@ -306,12 +306,9 @@ automatically as part of the deploy.
    first, then deploy. If builds are off for lack of credits, the rotation
    waits on them like any code change.
 
-   **The `dev` context value of a secret is returned in plaintext by the
-   Netlify env API** (`manage-env-vars` with `getAllEnvVars`), while the
-   other contexts come back masked. Anything with Netlify API access can
-   read it, this session included. Leave `dev` empty for `GITHUB_TOKEN`, or
-   give it a separate low-privilege token, so the write-capable one is never
-   readable that way.
+   **Leave the `dev` context of `GITHUB_TOKEN` empty**, or give it a separate
+   low-privilege token. Netlify's env API does not mask that context the way
+   it masks the others, so the write-capable token should never sit there.
 
 ### Environment variables
 
@@ -426,7 +423,7 @@ force-pushes).
 ## Current state
 
 Working and deployed, all confirmed against real data: sync, manual fields
-with autosave, Send to Claude (verified writing to `squelch`), staleness
+with autosave, Send to Claude (verified in production), staleness
 flags, completeness scoring, compact collapsible cards, Postgres persistence,
 SSO gating.
 
@@ -443,8 +440,8 @@ is not.
 
 The live data makes the problem concrete: all repos read `active` with every
 note field empty, so the manual half of the tool is going unused. Staleness is
-the sharpest gap — `bigmachines` (last pushed 2014) and
-`hook-line-and-sentence` (last pushed yesterday) render nearly identically.
+the sharpest gap — a repo last pushed in 2014 and one pushed yesterday
+render nearly identically.
 
 Remaining observations, not an agreed roadmap, are listed in `HANDOFF.md`
 under "What to do next". Confirm with Matt before building beyond staleness.

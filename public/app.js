@@ -386,15 +386,15 @@ function renderCard(repo) {
       <summary><span class="summary-title">NOTES</span><span class="summary-hint notes-hint">${noteSummary}</span></summary>
       <div class="field">
         <label for="progress-${repo.id}">Progress</label>
-        <textarea id="progress-${repo.id}" data-field="progress_note" placeholder="Where things stand...">${escapeHtml(repo.progress_note)}</textarea>
+        <textarea id="progress-${repo.id}" data-field="progress_note" maxlength="10000" placeholder="Where things stand...">${escapeHtml(repo.progress_note)}</textarea>
       </div>
       <div class="field">
         <label for="goals-${repo.id}">Goals</label>
-        <textarea id="goals-${repo.id}" data-field="goals" placeholder="What this repo is for / aiming at...">${escapeHtml(repo.goals)}</textarea>
+        <textarea id="goals-${repo.id}" data-field="goals" maxlength="10000" placeholder="What this repo is for / aiming at...">${escapeHtml(repo.goals)}</textarea>
       </div>
       <div class="field">
         <label for="next-${repo.id}">Next steps</label>
-        <textarea id="next-${repo.id}" data-field="next_steps" placeholder="What to do next...">${escapeHtml(repo.next_steps)}</textarea>
+        <textarea id="next-${repo.id}" data-field="next_steps" maxlength="10000" placeholder="What to do next...">${escapeHtml(repo.next_steps)}</textarea>
       </div>
       <div class="save-indicator">saved</div>
     </details>
@@ -517,30 +517,43 @@ async function saveRepo(id, cardEl) {
     fields[input.dataset.field] = input.value;
   });
 
-  const res = await fetch(`/api/repos/${id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(fields),
-  });
+  let res;
+  try {
+    res = await fetch(`/api/repos/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(fields),
+    });
+  } catch (err) {
+    alert(`Save failed: ${err.message}. Your edit is still on screen but not stored.`);
+    return;
+  }
 
   if (isAuthFailure(res)) {
     alert(AUTH_MESSAGE);
     return;
   }
 
-  if (res.ok) {
-    const updated = await res.json();
-    const idx = repos.findIndex((r) => r.id === id);
-    if (idx !== -1) repos[idx] = updated;
-
-    const scope = reposInScope();
-    renderOverview(scope);
-    renderPick(scope);
-
-    const indicator = cardEl.querySelector(".save-indicator");
-    indicator.classList.add("visible");
-    setTimeout(() => indicator.classList.remove("visible"), 1200);
+  // Said out loud, because the text stays in the box either way and a silent
+  // failure looks exactly like a save.
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    alert(`Save failed: ${data?.error || res.statusText || `HTTP ${res.status}`}. `
+      + "Your edit is still on screen but not stored.");
+    return;
   }
+
+  const updated = await res.json();
+  const idx = repos.findIndex((r) => r.id === id);
+  if (idx !== -1) repos[idx] = updated;
+
+  const scope = reposInScope();
+  renderOverview(scope);
+  renderPick(scope);
+
+  const indicator = cardEl.querySelector(".save-indicator");
+  indicator.classList.add("visible");
+  setTimeout(() => indicator.classList.remove("visible"), 1200);
 }
 
 const SORTERS = {

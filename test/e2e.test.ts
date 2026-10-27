@@ -113,6 +113,31 @@ describe("API against a real database", { skip: url ? false : "DATABASE_URL not 
     assert.equal((await patch(999999, { status: "active" })).status, 404);
   });
 
+  it("concurrent PATCHes of different fields do not undo each other", async () => {
+    // Each request names one field. A read-then-write update reads the row,
+    // then writes all four fields back, so a request that read before another
+    // committed puts the old value back. Repeated because the window is small.
+    for (let round = 0; round < 20; round += 1) {
+      const tag = `r${round}`;
+      const results = await Promise.all([
+        patch(REPO.id, { progress_note: `${tag}-progress` }),
+        patch(REPO.id, { goals: `${tag}-goals` }),
+        patch(REPO.id, { next_steps: `${tag}-next` }),
+      ]);
+      assert.deepEqual(results.map((r) => r.status), [200, 200, 200]);
+
+      const [row] = (await sql`
+        SELECT progress_note, goals, next_steps FROM repos WHERE id = ${REPO.id}
+      `) as any[];
+      assert.deepEqual(
+        [row.progress_note, row.goals, row.next_steps],
+        [`${tag}-progress`, `${tag}-goals`, `${tag}-next`],
+        `round ${round}`
+      );
+    }
+    await patch(REPO.id, { goals: "ship stage 2" });
+  });
+
   it("caps an over-long note field", async () => {
     const res = await patch(REPO.id, { goals: "x".repeat(10_001) });
     assert.equal(res.status, 400);
