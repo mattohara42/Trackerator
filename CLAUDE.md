@@ -283,9 +283,11 @@ automatically as part of the deploy.
    pick a long expiry and note the date here when you make a new one.
 
    Fixing it needs a **deploy**, because of gotcha 1. A new value in the
-   Netlify UI does nothing until a build picks it up, and with credits out
-   no build happens. So a token rotation is blocked on credits, the same as
-   any code change.
+   Netlify UI does nothing until a build picks it up. Set the variable
+   first, then deploy. If builds are off for lack of credits, the rotation
+   waits on them like any code change. (On 2026-10-27 a deploy preview built
+   again for PR #29, so credits look to have come back. Check before
+   assuming either way.)
 
    **The `dev` context value of a secret is returned in plaintext by the
    Netlify env API** (`manage-env-vars` with `getAllEnvVars`), while the
