@@ -496,6 +496,11 @@ async function sendNote(id, cardEl) {
 
     input.value = "";
     cardEl.querySelector(".note-sent-at").textContent = "Sent just now";
+  } catch (err) {
+    // The connection can drop after GitHub accepted the commit, so a retry
+    // could add the note twice.
+    alert(`Send failed: ${err.message}. The note may or may not have been committed, `
+      + "so check the repo's CLAUDE.md before sending again.");
   } finally {
     btn.disabled = false;
     label.textContent = "SEND TO CLAUDE";
