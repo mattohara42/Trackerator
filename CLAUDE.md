@@ -193,6 +193,15 @@ notes on a routine sync would be the worst bug this app could have.
   one click, no expanding — since burying it in a collapsed dropdown was why
   every repo sat at the `active` default. Notes autosave inline (600ms
   debounce).
+- **Phone layout** (700px and under). Each card collapses to a two-line row
+  (attention flag, name, commit age, status, open work, setup score), so a
+  phone shows about a dozen repos per screen. Tapping a row sets `#repo/<id>`
+  and the same card fills the screen as the detail view, so editing and
+  autosave run through the normal card code. Because the open repo is in the
+  URL, the phone's back gesture closes it and the list comes back at the same
+  scroll position. Filter, sort and archived fold behind a VIEW button.
+  Desktop is untouched: every rule sits inside one media query, and the
+  breakpoint is repeated in `phoneQuery` in `app.js`, so change both together.
 - **Send to Claude** — per-repo note box; commits the note into *that repo's*
   `CLAUDE.md` under a `## Notes from Trackerator` heading, via the GitHub
   Contents API. Any later Claude session on that repo picks it up

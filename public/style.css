@@ -902,3 +902,225 @@ textarea:focus {
 .card-links a:hover {
   color: var(--accent);
 }
+
+/* ---------- Phone layout ---------- */
+
+/* Desktop never shows these. The wrapper around filter/sort/archived is
+   display: contents so the topbar lays out exactly as it did before it
+   existed. */
+.controls-toggle,
+.card-row,
+.card-back {
+  display: none;
+}
+
+.view-controls {
+  display: contents;
+}
+
+/* The breakpoint is mirrored by phoneQuery in app.js; change both together.
+   Two states. The list: every card collapses to its .card-row, two dense
+   lines, so a phone shows a dozen repos instead of one. The detail
+   (body.detail-open, driven by #repo/<id>): only the open card, at full
+   size, with a sticky back bar. */
+@media (max-width: 700px) {
+  .topbar {
+    padding: 0.35rem 0.75rem calc(0.35rem + 5px);
+    gap: 0.5rem;
+  }
+
+  .plate-title .logo {
+    width: 112px;
+  }
+
+  /* Lets VIEW and SYNC sit in the topbar's own row, so the opened controls
+     can wrap underneath at full width without dragging the buttons down. */
+  .topbar-controls {
+    display: contents;
+  }
+
+  .controls-toggle {
+    display: inline-flex;
+    margin-left: auto;
+  }
+
+  .controls-toggle,
+  #syncBtn {
+    padding: 0.45rem 0.7rem;
+    font-size: 0.68rem;
+  }
+
+  .topbar.controls-open .controls-toggle {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .view-controls {
+    display: none;
+  }
+
+  /* Opens as its own full-width row under the logo and buttons. */
+  .topbar.controls-open .view-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.6rem;
+    order: 10;
+    flex-basis: 100%;
+    padding-top: 0.3rem;
+  }
+
+  .topbar.controls-open .synced-at {
+    flex-basis: 100%;
+    padding-left: 0;
+    border-left: none;
+  }
+
+  .overview {
+    gap: 0.4rem 0.8rem;
+    padding: 0.5rem 0.75rem 0;
+  }
+
+  .tally {
+    font-size: 0.62rem;
+  }
+
+  .pick {
+    gap: 0.3rem 0.5rem;
+    margin: 0.5rem 0.75rem 0;
+    padding: 0.4rem 0.6rem;
+  }
+
+  .archived-note {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 0.4rem;
+    padding: 0.6rem 0.75rem 1.5rem;
+  }
+
+  /* ----- The list ----- */
+
+  body:not(.detail-open) .card {
+    --cut: 8px;
+    padding: 0;
+    gap: 0;
+  }
+
+  body:not(.detail-open) .card > :not(.card-row) {
+    display: none;
+  }
+
+  /* The rivets read as clutter at this size. */
+  body:not(.detail-open) .card::before,
+  body:not(.detail-open) .card::after {
+    display: none;
+  }
+
+  .card-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "flag name age"
+      "flag info info";
+    align-items: center;
+    gap: 0.2rem 0.5rem;
+    width: 100%;
+    padding: 0.55rem 0.75rem;
+    border: none;
+    background: none;
+    color: var(--text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .card-row:active {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .row-flag {
+    grid-area: flag;
+    color: var(--led-red);
+    font-weight: 700;
+    font-size: 1rem;
+  }
+
+  .row-flag[hidden] {
+    display: none;
+  }
+
+  .row-name {
+    grid-area: name;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .row-age {
+    grid-area: age;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.72rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .row-info {
+    grid-area: info;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 0.75rem;
+    font-size: 0.66rem;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+  }
+
+  .row-status {
+    color: var(--text);
+  }
+
+  /* ----- The detail ----- */
+
+  .detail-open .topbar,
+  .detail-open .overview,
+  .detail-open .pick,
+  .detail-open .archived-note,
+  .detail-open .card:not(.open),
+  .detail-open .card-row {
+    display: none;
+  }
+
+  .detail-open .grid {
+    padding-top: 0;
+  }
+
+  .detail-open .card {
+    padding-top: 0;
+  }
+
+  .detail-open .card-back {
+    display: flex;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    margin: 0 -1.1rem;
+    padding: 0.75rem 1.1rem;
+    border: none;
+    border-bottom: 1px solid var(--metal);
+    background: var(--panel-raised);
+    color: var(--accent);
+    font: inherit;
+    font-size: 0.8rem;
+    letter-spacing: 0.12em;
+    text-align: left;
+    cursor: pointer;
+  }
+}

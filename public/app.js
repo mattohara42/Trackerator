@@ -11,6 +11,13 @@ const archivedNote = document.getElementById("archivedNote");
 const sortSelect = document.getElementById("sortBy");
 const overview = document.getElementById("overview");
 const pickEl = document.getElementById("pick");
+const topbar = document.querySelector(".topbar");
+const controlsToggle = document.getElementById("controlsToggle");
+
+// Must match the breakpoint of the phone layout in style.css. Used only where
+// behaviour differs, not looks: on a phone the pick opens the repo's detail
+// view, on desktop it scrolls to the card.
+const phoneQuery = window.matchMedia("(max-width: 700px)");
 
 const ARCHIVED_PREF_KEY = "trackerator.showArchived";
 const SORT_PREF_KEY = "trackerator.sortBy";
@@ -43,6 +50,11 @@ function relativeTime(iso) {
   const months = Math.floor(days / 30);
   if (months < 12) return `${months}mo ago`;
   return `${Math.floor(months / 12)}y ago`;
+}
+
+/** relativeTime without the "ago", for the phone rows where width is scarce. */
+function shortAge(iso) {
+  return iso ? relativeTime(iso).replace(/ ago$/, "") : "never";
 }
 
 const CI_LED = {
@@ -245,6 +257,7 @@ function renderPick(inScope) {
   `;
 
   pickEl.querySelector(".pick-repo").addEventListener("click", () => {
+    if (phoneQuery.matches) return openDetail(pick.repo.id);
     const card = grid.querySelector(`.card[data-id="${pick.repo.id}"]`);
     if (!card) return;
     card.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -271,7 +284,22 @@ function renderCard(repo) {
   el.className = `card tier-${stale.key}${flagged ? " needs-attention" : ""}`;
   el.dataset.id = repo.id;
 
+  // .card-row and .card-back exist only for the phone layout (see style.css).
+  // The row is the whole card in the list; tapping it opens this same card
+  // full-screen, so the detail view is the card itself and every edit path
+  // below works there unchanged.
   el.innerHTML = `
+    <button type="button" class="card-back">‹ BACK</button>
+    <button type="button" class="card-row">
+      <span class="row-flag"${flagged ? "" : " hidden"}>!</span>
+      <span class="row-name">${escapeHtml(repo.name)}</span>
+      <span class="row-age"><span class="led ${stale.led}"></span>${shortAge(repo.last_commit_date || repo.pushed_at)}</span>
+      <span class="row-info">
+        <span class="row-status">${escapeHtml(repo.status.toUpperCase())}</span>
+        <span>${workHintOf(work)}</span>
+        <span>${completeness.passed}/${completeness.total}</span>
+      </span>
+    </button>
     <div class="card-header">
       <a href="${safeHref(repo.html_url)}" target="_blank" rel="noopener">${escapeHtml(repo.name)}</a>
       <span class="header-meta">
@@ -399,6 +427,8 @@ function renderCard(repo) {
   });
 
   el.querySelector(".btn-send-note").addEventListener("click", () => sendNote(repo.id, el));
+  el.querySelector(".card-row").addEventListener("click", () => openDetail(repo.id));
+  el.querySelector(".card-back").addEventListener("click", closeDetail);
 
   return el;
 }
@@ -416,8 +446,11 @@ function refreshDerived(el, repo) {
   el.querySelector(".notes-hint").textContent =
     `${status.toUpperCase()}${filled ? ` · ${filled}/3 filled` : ""}`;
 
+  el.querySelector(".row-status").textContent = status.toUpperCase();
+
   const flagged = needsAttention({ ...repo, status });
   el.classList.toggle("needs-attention", flagged);
+  el.querySelector(".row-flag").hidden = !flagged;
   const flag = el.querySelector(".attention-flag");
   flag.hidden = !flagged;
   if (flagged) {
@@ -583,7 +616,62 @@ function render() {
     ""
   );
   syncedAtEl.textContent = latestSync ? `Last synced ${relativeTime(latestSync)}` : "";
+
+  // A re-render (after a sync, say) replaces every card, including an open one.
+  applyRoute();
 }
+
+// ---------------------------------------------------------------------------
+// Phone drill-down. The open repo lives in the URL (#repo/<id>), so the
+// phone's own back button or swipe closes it, and a detail view survives a
+// reload. Desktop ignores all of this: the classes it sets only have rules
+// inside the phone media query.
+// ---------------------------------------------------------------------------
+
+const DETAIL_PREFIX = "#repo/";
+let listScrollY = 0;
+// Whether there's a list entry behind the detail one in history. Not true for
+// a detail URL opened directly, where history.back() would leave the site.
+let openedFromList = false;
+
+function openDetail(id) {
+  listScrollY = window.scrollY;
+  openedFromList = true;
+  location.hash = `repo/${id}`;
+}
+
+function closeDetail() {
+  if (openedFromList) {
+    history.back();
+  } else {
+    history.replaceState(null, "", location.pathname + location.search);
+    applyRoute();
+  }
+}
+
+function applyRoute() {
+  const id = location.hash.startsWith(DETAIL_PREFIX) ? location.hash.slice(DETAIL_PREFIX.length) : null;
+  const card = id ? [...grid.children].find((c) => c.dataset.id === id) : null;
+  const wasOpen = document.body.classList.contains("detail-open");
+
+  grid.querySelectorAll(".card.open").forEach((c) => c.classList.remove("open"));
+  document.body.classList.toggle("detail-open", Boolean(card));
+
+  if (card) {
+    card.classList.add("open");
+    if (!wasOpen) window.scrollTo(0, 0);
+  } else if (wasOpen) {
+    openedFromList = false;
+    window.scrollTo(0, listScrollY);
+  }
+}
+
+window.addEventListener("hashchange", applyRoute);
+
+controlsToggle.addEventListener("click", () => {
+  const open = topbar.classList.toggle("controls-open");
+  controlsToggle.setAttribute("aria-expanded", String(open));
+});
 
 function showLoadError(message) {
   emptyState.hidden = false;

@@ -24,28 +24,35 @@
       </h1>
     </div>
     <div class="topbar-controls">
-      <label class="filter-label" for="statusFilter">FILTER</label>
-      <select id="statusFilter">
-        <option value="">ALL</option>
-        <option value="active">ACTIVE</option>
-        <option value="paused">PAUSED</option>
-        <option value="idea">IDEA</option>
-        <option value="done">DONE</option>
-        <option value="archived">ARCHIVED</option>
-      </select>
-      <label class="filter-label" for="sortBy">SORT</label>
-      <select id="sortBy">
-        <option value="attention">NEEDS ATTENTION</option>
-        <option value="stale">LONGEST NEGLECTED</option>
-        <option value="recent">MOST RECENT</option>
-        <option value="incomplete">LEAST COMPLETE</option>
-        <option value="name">NAME</option>
-      </select>
-      <label class="toggle" for="showArchived">
-        <input type="checkbox" id="showArchived" />
-        SHOW ARCHIVED
-      </label>
-      <span id="syncedAt" class="synced-at"></span>
+      <!-- Phones only: filter, sort and the archived toggle fold away behind
+           this, so the sticky topbar is one slim row. On desktop the button is
+           hidden and the wrapper is display: contents, so nothing changes. -->
+      <button id="controlsToggle" class="btn-panel controls-toggle" type="button"
+        aria-expanded="false" aria-controls="viewControls">VIEW</button>
+      <div id="viewControls" class="view-controls">
+        <label class="filter-label" for="statusFilter">FILTER</label>
+        <select id="statusFilter">
+          <option value="">ALL</option>
+          <option value="active">ACTIVE</option>
+          <option value="paused">PAUSED</option>
+          <option value="idea">IDEA</option>
+          <option value="done">DONE</option>
+          <option value="archived">ARCHIVED</option>
+        </select>
+        <label class="filter-label" for="sortBy">SORT</label>
+        <select id="sortBy">
+          <option value="attention">NEEDS ATTENTION</option>
+          <option value="stale">LONGEST NEGLECTED</option>
+          <option value="recent">MOST RECENT</option>
+          <option value="incomplete">LEAST COMPLETE</option>
+          <option value="name">NAME</option>
+        </select>
+        <label class="toggle" for="showArchived">
+          <input type="checkbox" id="showArchived" />
+          SHOW ARCHIVED
+        </label>
+        <span id="syncedAt" class="synced-at"></span>
+      </div>
       <button id="syncBtn" class="btn-panel">
         <span class="btn-led"></span>
         <span id="syncLabel">SYNC UPLINK</span>
