@@ -273,6 +273,29 @@ automatically as part of the deploy.
    Google Fonts hops (`style-src` → googleapis, `font-src` → gstatic) were
    verified with no working egress and no deploy.
 
+8. **Sync failing with GitHub `401 "Bad credentials"` means the token is dead.**
+   The body is GitHub's own JSON, which separates it from gotcha 6 (an HTML
+   401 from the SSO edge). If no deploy has happened since it last worked,
+   the code and the bound env var are unchanged, so the token itself has
+   expired or been revoked. First seen 2026-10-27: the token was set
+   2026-08-25 and stopped working about 60 days later, which matches
+   GitHub's 60-day expiry option. Fine-grained PATs expire by default, so
+   pick a long expiry and note the date here when you make a new one.
+
+   Fixing it needs a **deploy**, because of gotcha 1. A new value in the
+   Netlify UI does nothing until a build picks it up. Set the variable
+   first, then deploy. If builds are off for lack of credits, the rotation
+   waits on them like any code change. (On 2026-10-27 a deploy preview built
+   again for PR #29, so credits look to have come back. Check before
+   assuming either way.)
+
+   **The `dev` context value of a secret is returned in plaintext by the
+   Netlify env API** (`manage-env-vars` with `getAllEnvVars`), while the
+   other contexts come back masked. Anything with Netlify API access can
+   read it, this session included. Leave `dev` empty for `GITHUB_TOKEN`, or
+   give it a separate low-privilege token, so the write-capable one is never
+   readable that way.
+
 ### Environment variables
 
 | Variable | Where | Notes |
@@ -403,6 +426,8 @@ SSO gating.
 - **Rotate the GitHub PAT.** It was briefly stored as a Netlify variable *name*
   (names are not masked the way secret values are), and tokens were pasted in
   chat. Replace it, update the Netlify variable, then redeploy for it to bind.
+  Now urgent: the old token stopped working on 2026-10-27 (gotcha 8), so sync
+  is down until a new one is set **and** a deploy goes through.
 - Enable auto-delete of head branches (see above).
 
 ## Next up: UI work
