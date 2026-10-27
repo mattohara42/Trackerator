@@ -8,7 +8,8 @@ const TEXT_FIELDS = ["progress_note", "goals", "next_steps"] as const;
 /**
  * Generous, but not unbounded. These are `TEXT` columns with no limit of their
  * own, so without a cap here a single request can put a megabyte into a row
- * that every dashboard load then reads back.
+ * that every dashboard load then reads back. The note textareas in
+ * `public/app.js` carry the same number as `maxlength`, so change both.
  */
 const MAX_TEXT_LENGTH = 10_000;
 
