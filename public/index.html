@@ -2,7 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- viewport-fit=cover makes the phone report its status bar, notch and
+       rounded corners as env(safe-area-inset-*), which every top bar in
+       style.css pads by. theme-color tints the browser's own top bar to match
+       the topbar. test/mobile.test.ts keeps both. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#241a4a" />
   <title>Trackerator</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -24,28 +29,35 @@
       </h1>
     </div>
     <div class="topbar-controls">
-      <label class="filter-label" for="statusFilter">FILTER</label>
-      <select id="statusFilter">
-        <option value="">ALL</option>
-        <option value="active">ACTIVE</option>
-        <option value="paused">PAUSED</option>
-        <option value="idea">IDEA</option>
-        <option value="done">DONE</option>
-        <option value="archived">ARCHIVED</option>
-      </select>
-      <label class="filter-label" for="sortBy">SORT</label>
-      <select id="sortBy">
-        <option value="attention">NEEDS ATTENTION</option>
-        <option value="stale">LONGEST NEGLECTED</option>
-        <option value="recent">MOST RECENT</option>
-        <option value="incomplete">LEAST COMPLETE</option>
-        <option value="name">NAME</option>
-      </select>
-      <label class="toggle" for="showArchived">
-        <input type="checkbox" id="showArchived" />
-        SHOW ARCHIVED
-      </label>
-      <span id="syncedAt" class="synced-at"></span>
+      <!-- Phones only: filter, sort and the archived toggle fold away behind
+           this, so the sticky topbar is one slim row. On desktop the button is
+           hidden and the wrapper is display: contents, so nothing changes. -->
+      <button id="controlsToggle" class="btn-panel controls-toggle" type="button"
+        aria-expanded="false" aria-controls="viewControls">VIEW</button>
+      <div id="viewControls" class="view-controls">
+        <label class="filter-label" for="statusFilter">FILTER</label>
+        <select id="statusFilter">
+          <option value="">ALL</option>
+          <option value="active">ACTIVE</option>
+          <option value="paused">PAUSED</option>
+          <option value="idea">IDEA</option>
+          <option value="done">DONE</option>
+          <option value="archived">ARCHIVED</option>
+        </select>
+        <label class="filter-label" for="sortBy">SORT</label>
+        <select id="sortBy">
+          <option value="attention">NEEDS ATTENTION</option>
+          <option value="stale">LONGEST NEGLECTED</option>
+          <option value="recent">MOST RECENT</option>
+          <option value="incomplete">LEAST COMPLETE</option>
+          <option value="name">NAME</option>
+        </select>
+        <label class="toggle" for="showArchived">
+          <input type="checkbox" id="showArchived" />
+          SHOW ARCHIVED
+        </label>
+        <span id="syncedAt" class="synced-at"></span>
+      </div>
       <button id="syncBtn" class="btn-panel">
         <span class="btn-led"></span>
         <span id="syncLabel">SYNC UPLINK</span>
