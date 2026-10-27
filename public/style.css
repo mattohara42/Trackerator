@@ -81,7 +81,14 @@ body {
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
-  padding: 0.5rem 1.5rem calc(0.5rem + 5px);
+  /* The safe-area insets are 0 on a desktop, so this is the old padding
+     there. On a phone they keep the bar clear of the status bar and notch,
+     and of the rounded corners in landscape. */
+  padding:
+    calc(0.5rem + env(safe-area-inset-top))
+    max(1.5rem, env(safe-area-inset-right))
+    calc(0.5rem + 5px)
+    max(1.5rem, env(safe-area-inset-left));
   background: linear-gradient(180deg, var(--panel-raised-a), var(--panel-a));
   backdrop-filter: blur(10px) saturate(1.2);
   border-bottom: 1px solid var(--metal);
@@ -924,8 +931,14 @@ textarea:focus {
    (body.detail-open, driven by #repo/<id>): only the open card, at full
    size, with a sticky back bar. */
 @media (max-width: 700px) {
+  /* Every bar pinned to the top on a phone pads by the safe-area insets,
+     because with viewport-fit=cover the page runs under the status bar. */
   .topbar {
-    padding: 0.35rem 0.75rem calc(0.35rem + 5px);
+    padding:
+      calc(0.35rem + env(safe-area-inset-top))
+      max(0.75rem, env(safe-area-inset-right))
+      calc(0.35rem + 5px)
+      max(0.75rem, env(safe-area-inset-left));
     gap: 0.5rem;
   }
 
@@ -999,7 +1012,11 @@ textarea:focus {
   .grid {
     grid-template-columns: 1fr;
     gap: 0.4rem;
-    padding: 0.6rem 0.75rem 1.5rem;
+    padding:
+      0.6rem
+      max(0.75rem, env(safe-area-inset-right))
+      calc(1.5rem + env(safe-area-inset-bottom))
+      max(0.75rem, env(safe-area-inset-left));
   }
 
   /* ----- The list ----- */
@@ -1097,12 +1114,25 @@ textarea:focus {
     display: none;
   }
 
+  /* The open card becomes the page: edge to edge, no cut corners, so its
+     back bar can be a full-width header like the topbar it replaces. */
   .detail-open .grid {
-    padding-top: 0;
+    padding: 0 0 calc(1.5rem + env(safe-area-inset-bottom));
   }
 
   .detail-open .card {
-    padding-top: 0;
+    clip-path: none;
+    border-width: 0 0 2px;
+    padding:
+      0
+      max(1.1rem, env(safe-area-inset-right))
+      1rem
+      max(1.1rem, env(safe-area-inset-left));
+  }
+
+  .detail-open .card::before,
+  .detail-open .card::after {
+    display: none;
   }
 
   .detail-open .card-back {
@@ -1111,11 +1141,20 @@ textarea:focus {
     position: sticky;
     top: 0;
     z-index: 5;
-    margin: 0 -1.1rem;
-    padding: 0.75rem 1.1rem;
+    margin:
+      0
+      calc(-1 * max(1.1rem, env(safe-area-inset-right)))
+      0
+      calc(-1 * max(1.1rem, env(safe-area-inset-left)));
+    padding:
+      calc(0.75rem + env(safe-area-inset-top))
+      max(1.1rem, env(safe-area-inset-right))
+      0.75rem
+      max(1.1rem, env(safe-area-inset-left));
     border: none;
     border-bottom: 1px solid var(--metal);
     background: var(--panel-raised);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
     color: var(--accent);
     font: inherit;
     font-size: 0.8rem;

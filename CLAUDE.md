@@ -202,6 +202,16 @@ notes on a routine sync would be the worst bug this app could have.
   scroll position. Filter, sort and archived fold behind a VIEW button.
   Desktop is untouched: every rule sits inside one media query, and the
   breakpoint is repeated in `phoneQuery` in `app.js`, so change both together.
+
+  **Standing rule for any mobile design here (Matt's request, 2026-10-27):
+  every bar pinned to the top of the screen clears the phone's status bar and
+  notch.** The viewport meta carries `viewport-fit=cover`, which makes the
+  phone report its insets, and every sticky or fixed `top: 0` rule pads by
+  `env(safe-area-inset-top)`. Side and bottom edges use the matching insets
+  too. `test/mobile.test.ts` fails if either half goes missing, including for
+  a new pinned bar that forgets it. To check it visually, Playwright can fake
+  a notch through CDP: `Emulation.setSafeAreaInsetsOverride` with
+  `{ insets: { top: 47, bottom: 34, left: 0, right: 0 } }`.
 - **Send to Claude** — per-repo note box; commits the note into *that repo's*
   `CLAUDE.md` under a `## Notes from Trackerator` heading, via the GitHub
   Contents API. Any later Claude session on that repo picks it up

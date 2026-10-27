@@ -2,7 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- viewport-fit=cover makes the phone report its status bar, notch and
+       rounded corners as env(safe-area-inset-*), which every top bar in
+       style.css pads by. theme-color tints the browser's own top bar to match
+       the topbar. test/mobile.test.ts keeps both. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#241a4a" />
   <title>Trackerator</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
